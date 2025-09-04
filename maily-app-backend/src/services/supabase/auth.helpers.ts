@@ -1,4 +1,4 @@
-import { supabase } from '@/config/supabase.config.ts'
+import { supabase } from '@/config/supabase.config'
 
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({

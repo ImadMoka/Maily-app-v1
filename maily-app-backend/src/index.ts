@@ -1,7 +1,7 @@
 import { config } from '@/config';
 
 const server = Bun.serve({
-  port: config.port,
+  port: config.server.port,
   fetch(req) {
     const url = new URL(req.url);
     

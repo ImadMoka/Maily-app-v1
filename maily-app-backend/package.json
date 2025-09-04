@@ -7,7 +7,7 @@
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir ./dist --target bun",
     "start": "bun run src/index.ts",
-    "types:generate": "export $(cat ../.env | grep -v '^#' | xargs) && ~/.local/bin/supabase gen types typescript --project-id zmuyzdhbecwgpmtauksc > src/types/database.types.ts"
+    "types:generate": "export $(cat .env | grep -v '^#' | xargs) && ~/.local/bin/supabase gen types typescript --project-id zmuyzdhbecwgpmtauksc > src/types/database.types.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -18,10 +18,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
-    "bullmq": "^5.58.5",
     "dotenv": "^17.2.2",
-    "ioredis": "^5.7.0",
-    "mailparser": "^3.7.4",
     "node-imap": "^0.9.6",
     "zod": "^4.1.5"
   }

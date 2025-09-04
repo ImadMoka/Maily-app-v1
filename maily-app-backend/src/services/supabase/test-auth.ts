@@ -1,4 +1,4 @@
-import { signUp, signIn, signOut, getCurrentUser } from '@/services/supabase/auth.helpers.ts'
+import { signUp, signIn, signOut, getCurrentUser } from '@/services/supabase/auth.helpers'
 
 async function testAuthentication() {
   const testEmail = 'test' + Date.now() + '@gmail.com'
