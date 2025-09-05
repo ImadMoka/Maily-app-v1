@@ -208,3 +208,5 @@ CREATE POLICY "Users can manage own email accounts"
     USING (auth.uid() = user_id)
     WITH CHECK (auth.uid() = user_id);
 
+
+
