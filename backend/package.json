@@ -6,15 +6,10 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "build": "bun build src/index.ts --outdir ./dist --target bun",
-    "start": "bun run src/index.ts",
-    "types:generate": "export $(cat .env | grep -v '^#' | xargs) && ~/.local/bin/supabase gen types typescript --project-id zmuyzdhbecwgpmtauksc > src/types/database.types.ts"
+    "start": "bun run src/index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
     "@types/node-imap": "^0.9.3"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

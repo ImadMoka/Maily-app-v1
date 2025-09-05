@@ -1,12 +1,16 @@
 {
-  "type": "module",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
-    "dotenv": "^17.2.2"
+  "name": "maily-app",
+  "version": "1.0.0",
+  "description": "Maily email management application",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "types:generate": "cd backend && export $(cat .env | grep -v '^#' | xargs) && ~/.local/bin/supabase gen types typescript --project-id zmuyzdhbecwgpmtauksc > ../shared/types/database.types.ts"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "ts-node": "^10.9.0"
+    "typescript": "^5",
+    "@types/bun": "latest"
   }
 }
