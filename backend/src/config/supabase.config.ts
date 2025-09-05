@@ -1,19 +1,24 @@
-import { createClient } from '@supabase/supabase-js'
 import 'dotenv/config'
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseServiceKey = process.env.SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables')
+export const supabaseConfig = {
+  url: process.env.SUPABASE_URL!,
+  anonKey: process.env.SUPABASE_ANON_KEY!,
+  serviceKey: process.env.SUPABASE_ACCESS_TOKEN!,
+  options: {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+  throw new Error('Missing required Supabase environment variables: SUPABASE_URL, SUPABASE_ANON_KEY')
+}
+
+if (!supabaseConfig.serviceKey) {
+  console.warn('Warning: SUPABASE_ACCESS_TOKEN not found. Admin operations will be limited.')
+}
 
 
 

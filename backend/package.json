@@ -3,7 +3,10 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "test:auth": "bun run src/services/test/auth-flow.test.ts",
+    "test:accounts": "bun run src/services/test/account-management.test.ts",
+    "test": "bun run src/services/test/account-management.test.ts"
   },
   "devDependencies": {
     "@types/node-imap": "^0.9.3"
