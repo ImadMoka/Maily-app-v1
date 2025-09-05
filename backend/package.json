@@ -1,7 +1,5 @@
 {
-  "name": "email-client",
-  "module": "src/index.ts",
-  "type": "module",
+  "name": "backend",
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/index.ts",
