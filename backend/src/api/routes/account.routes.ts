@@ -1,5 +1,5 @@
-import { AccountService, type CreateAccountData } from '../../services/accounts/account.service'
-import { AuthUtils } from '../../utils/auth.utils'
+import { AccountService, type CreateAccountData } from '@/services/accounts/account.service'
+import { AuthUtils } from '@/utils/auth.utils'
 
 export class AccountRoutes {
   private accountService = new AccountService()
