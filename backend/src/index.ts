@@ -1,20 +1,18 @@
-import { config } from '@/config';
+import { SimpleEmailRoutes } from './api/routes/email.routes';
 
-const server = Bun.serve({
-  port: config.server.port,
-  fetch(req) {
+const emailRoutes = new SimpleEmailRoutes();
+
+Bun.serve({
+  port: 3000,
+  async fetch(req) {
     const url = new URL(req.url);
-    
-    if (url.pathname === '/') {
-      return new Response('Email Client API - Running on Bun!');
+
+    if (url.pathname === '/api/emails/fetch' && req.method === 'POST') {
+      return await emailRoutes.handleEmailFetch(req);
     }
-    
-    if (url.pathname === '/health') {
-      return Response.json({ status: 'ok', timestamp: new Date().toISOString() });
-    }
-    
-    return new Response('Not Found', { status: 404 });
+
+    return Response.json({ error: 'Not found' }, { status: 404 });
   },
 });
 
-console.log(`🚀 Email client server running on http://localhost:${server.port}`);
+console.log('🚀 Gmail API running on http://localhost:3000');
