@@ -35,3 +35,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Supabase local configuration
 .supabase
+
+# Test files with sensitive data
+backend/browser-test-commands.js
