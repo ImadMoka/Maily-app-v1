@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { colors } from '../src/constants';
+import { colors } from '../../../src/constants';
 
 export default function Index() {
   return (
