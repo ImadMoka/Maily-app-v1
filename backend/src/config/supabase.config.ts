@@ -20,5 +20,3 @@ if (!supabaseConfig.serviceKey) {
   console.warn('Warning: SUPABASE_SERVICE_KEY not found. Admin operations will be limited.')
 }
 
-
-
