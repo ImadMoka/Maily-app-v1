@@ -1,10 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '../../../shared/types/database.types'
+import type { Database } from '@/../../shared/types/database.types'
 
 export interface CreateAccountData {
   email: string
   password: string
   imapHost: string
+  imapPort: number
   imapUsername: string
 }
 
@@ -21,7 +22,7 @@ export class AccountService {
         password: data.password,
         imap_host: data.imapHost,
         imap_username: data.imapUsername,
-        imap_port: 993,
+        imap_port: data.imapPort,
         imap_use_tls: true,
         is_active: true,
         sync_status: 'idle'
