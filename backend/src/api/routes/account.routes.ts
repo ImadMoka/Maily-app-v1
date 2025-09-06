@@ -69,4 +69,29 @@ export class AccountRoutes {
       }, { status: 400 })
     }
   }
+
+
+  async handleGetAccounts(request: Request): Promise<Response> {
+    try {
+
+      const authHeader = request.headers.get('Authorization')
+
+      if (!authHeader) {
+        return Response.json({ error: 'Authorization header required' }, { status: 401 })
+      }
+
+      const { user, token } = await AuthUtils.validateToken(authHeader)
+
+      const userClient = AuthUtils.createUserClient(token)
+
+
+      const accounts = await this.accountService.getUserAccounts(userClient, user.id)
+
+      return Response.json({ accounts })
+      
+    } catch (error) {
+      return Response.json({ error: 'Failed to get accounts' }, { status: 500 })
+    }
+  }
 }
+

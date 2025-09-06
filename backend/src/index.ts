@@ -10,7 +10,9 @@ Bun.serve({
       return await accountRoutes.handleCreateAccount(req)
     }
 
-    
+    if (url.pathname === '/api/accounts' && req.method === 'GET') {
+      return await accountRoutes.handleGetAccounts(req)
+    }
 
     return Response.json({ error: 'Not found' }, { status: 404 });
   },

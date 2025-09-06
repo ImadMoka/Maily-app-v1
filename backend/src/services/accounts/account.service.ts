@@ -35,10 +35,11 @@ export class AccountService {
   }
 
   // Get user's accounts using user client (RLS enforced)
-  async getUserAccounts(userClient: SupabaseClient<Database>) {
+  async getUserAccounts(userClient: SupabaseClient<Database>, userId: string) {
     const { data: accounts, error } = await userClient
       .from('email_accounts')
       .select('*')
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) throw new Error(`Failed to fetch accounts: ${error.message}`)
