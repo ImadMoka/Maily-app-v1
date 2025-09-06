@@ -45,4 +45,23 @@ export class AccountService {
     if (error) throw new Error(`Failed to fetch accounts: ${error.message}`)
     return accounts
   }
+
+  // Get specific account by ID (RLS enforced - user can only access their own accounts)
+  async getAccountNewest(userClient: SupabaseClient<Database>, userId: string) {
+    const { data: account, error } = await userClient
+      .from('email_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new Error('Account not found or access denied')
+      }
+      throw new Error(`Failed to fetch account: ${error.message}`)
+    }
+    return account
+  }
 }

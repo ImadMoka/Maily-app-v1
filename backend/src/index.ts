@@ -1,6 +1,8 @@
 import { AccountRoutes } from './api/routes/account.routes'
+import { EmailRoutes } from './api/routes/email.routes'
 
 const accountRoutes = new AccountRoutes()
+const emailRoutes = new EmailRoutes()
 
 Bun.serve({
   async fetch(req) {
@@ -12,6 +14,11 @@ Bun.serve({
 
     if (url.pathname === '/api/accounts' && req.method === 'GET') {
       return await accountRoutes.handleGetAccounts(req)
+    }
+
+    // Email routes
+    if (url.pathname === '/api/emails/recent' && req.method === 'GET') {
+      return await emailRoutes.handleGetRecentEmails(req)
     }
 
     return Response.json({ error: 'Not found' }, { status: 404 });
