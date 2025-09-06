@@ -1,5 +1,5 @@
 import Imap from 'node-imap'
-import { ImapConnectionConfig, ImapVerificationResult, ImapError } from './imap.types'
+import { type ImapConnectionConfig, type ImapVerificationResult } from './imap.types'
 
 export class ImapService {
   

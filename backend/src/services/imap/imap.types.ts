@@ -11,14 +11,3 @@ export interface ImapVerificationResult {
   error?: string
   connectionTime?: number
 }
-
-export class ImapError extends Error {
-  constructor(
-    message: string,
-    public code?: string,
-    public originalError?: Error
-  ) {
-    super(message)
-    this.name = 'ImapError'
-  }
-}
