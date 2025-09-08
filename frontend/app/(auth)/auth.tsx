@@ -3,6 +3,7 @@ import { Alert, StyleSheet, View } from 'react-native'
 import { supabase } from '../../src/lib/supabase'
 import { Button, Input } from '@rneui/themed'
 import { colors } from '../../src/constants'
+import { router } from 'expo-router'
 
 export default function SignIn() {
   const [email, setEmail] = useState('')
@@ -28,8 +29,12 @@ export default function SignIn() {
       email: email,
       password: password,
     })
-    if (error) Alert.alert(error.message)
-    if (!session) Alert.alert('Please check your inbox for email verification!')
+    
+    if (error) {
+      Alert.alert(error.message)
+    } else {
+      router.push('/profile-setup')
+    }
     setLoading(false)
   }
 

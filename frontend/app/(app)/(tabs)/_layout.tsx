@@ -1,17 +1,9 @@
-import { View, StyleSheet } from 'react-native'
-import { colors } from '../../../src/constants'
+import { Tabs } from 'expo-router/tabs'
 
 export default function TabsLayout() {
   return (
-    <View style={styles.container}>
-      {/* Für jetzt simple View - später echte Tabs */}
-    </View>
+    <Tabs screenOptions={{ headerShown: false }}>
+      <Tabs.Screen name="index" />
+    </Tabs>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-})

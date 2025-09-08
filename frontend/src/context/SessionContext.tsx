@@ -1,18 +1,15 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { Session } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { type Session } from '@supabase/supabase-js'
+import { type SessionContextType } from './session.types'
 
-interface SessionContextType {
-  session: Session | null
-  loading: boolean
-}
 
 const SessionContext = createContext<SessionContextType>({
   session: null,
   loading: true,
 })
 
-export function SessionProvider({ children }: { children: React.ReactNode }) {
+export function SessionProvider({ children }: { children: React.ReactNode }) { // children: React... ist ein prop der übergeben wird und dabei ist der typ React.ReactNode also alles was ein react component ist z.b. ein button oder ein text
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
