@@ -229,3 +229,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+
+
+--ADDED LATER
+
+CREATE UNIQUE INDEX idx_one_active_sync 
+ON email_sync_jobs(account_id) 
+WHERE status = 'running';
