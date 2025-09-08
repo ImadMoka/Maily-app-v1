@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, TextInput, Button, StyleSheet } from 'react-native'
+import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native'
 import { router } from 'expo-router'
 import { colors } from '../../src/constants'
 import { supabase } from '../../src/lib/supabase'
@@ -7,8 +7,21 @@ import { supabase } from '../../src/lib/supabase'
 export default function ProfileSetup() {
   const [name, setName] = useState('')
 
-  function goToMainApp() {
-    router.replace('/(app)/(tabs)')
+  async function saveName() {
+    if (!name.trim()) {
+      Alert.alert('Please enter your name')
+      return
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      data: { display_name: name }
+    })
+
+    if (error) {
+      Alert.alert(error.message)
+    } else {
+      router.replace('/(app)/(tabs)')
+    }
   }
 
   return (
@@ -25,7 +38,7 @@ export default function ProfileSetup() {
       </View>
       
       <View style={[styles.verticallySpaced, styles.mt20]}>
-        <Button title="Save Name" onPress={goToMainApp} />
+        <Button title="Save Name" onPress={saveName} />
       </View>
     </View>
   )
