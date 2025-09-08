@@ -16,7 +16,12 @@ export default function SignIn() {
       email: email,
       password: password,
     })
-    if (error) Alert.alert(error.message)
+    
+    if (error) {
+      Alert.alert('Login Failed', error.message)
+    } else {
+      router.replace('/(app)/(tabs)')
+    }
     setLoading(false)
   }
 
