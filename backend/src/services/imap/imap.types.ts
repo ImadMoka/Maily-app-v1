@@ -23,11 +23,13 @@ export interface EmailMessage {
   subject: string
   from: EmailAddress
   to: EmailAddress[]
+  cc: EmailAddress[]
   date: Date
   preview: string
   hasAttachments: boolean
   isRead: boolean
   size: number
+  gmailThreadId?: string | null
 }
 
 export interface FetchEmailsResult {

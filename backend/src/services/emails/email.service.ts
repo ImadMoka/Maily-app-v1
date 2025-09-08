@@ -106,107 +106,54 @@ export class EmailDatabaseService {
    * Maps between our IMAP types and Supabase schema
    */
   private convertImapEmailToDbFormat(email: EmailMessage, accountId: string): EmailInsert {
-    // Generate a unique message ID if not present
-    const messageId = this.generateMessageId(email)
-    
-    // Extract thread ID from subject or message ID
-    const threadId = this.extractThreadId(email.subject, messageId)
-
     return {
       account_id: accountId,
       imap_uid: email.uid,
-      message_id: messageId,
-      
-      // Header information
+      message_id: this.generateMessageId(email),
       subject: email.subject || null,
       from_address: email.from.email,
       from_name: email.from.name || null,
-      to_addresses: this.convertAddressesToJson(email.to),
+      to_addresses: email.to.map(addr => addr.email),
+      cc_addresses: email.cc.map(addr => addr.email),
       date_sent: email.date.toISOString(),
-      
-      // Content (we don't have full body from headers-only fetch)
-      body_text: email.preview || null,
-      body_html: null,
-      
-      // Metadata
+      date_received: new Date().toISOString(),
+      preview_text: null,
       size_bytes: email.size,
       has_attachments: email.hasAttachments,
-      attachment_count: email.hasAttachments ? 1 : 0, // Estimate
-      
-      // Status
       is_read: email.isRead,
       is_starred: false,
       is_deleted: false,
-      is_spam: false,
-      
-      // Threading
-      thread_id: threadId,
-      thread_position: 0,
-      is_thread_root: true,
-      
-      // Folder/labels
-      folder: 'INBOX',
-      labels: [],
-      
-      // Sync status
-      sync_status: 'synced',
-      last_sync_at: new Date().toISOString()
+      folder: 'All Mail',
+      gmail_thread_id: email.gmailThreadId ? parseInt(email.gmailThreadId) : null,
+      sync_status: 'synced'
     }
   }
 
   /**
-   * Convert EmailAddress array to JSONB format
+   * Transform email for API response (simpler than full database conversion)
    */
-  private convertAddressesToJson(addresses: any[]): any {
-    return addresses.map(addr => ({
-      email: addr.email,
-      name: addr.name || null
-    }))
+  public transformEmailForResponse(email: EmailMessage, accountId: string) {
+    return {
+      id: email.id || `<${email.uid}.${email.date.getTime()}@maily-app.local>`,
+      uid: email.uid,
+      subject: email.subject || '(No Subject)',
+      from: email.from,
+      to: email.to,
+      cc: email.cc,
+      date: email.date.toISOString(),
+      hasAttachments: email.hasAttachments,
+      isRead: email.isRead,
+      size: email.size,
+      gmailThreadId: email.gmailThreadId
+    }
   }
 
-  /**
-   * Generate or extract message ID
-   */
+
   private generateMessageId(email: EmailMessage): string {
-    // If we have a proper message ID, use it
-    if (email.id && email.id.includes('@')) {
-      return email.id
-    }
-    
-    // Generate one based on UID and date
-    const timestamp = email.date.getTime()
-    return `<${email.uid}.${timestamp}@maily-app.local>`
+    return email.id && email.id.includes('@') ? email.id : 
+           `<${email.uid}.${email.date.getTime()}@maily-app.local>`
   }
 
-  /**
-   * Extract thread ID for conversation grouping
-   * Simplified threading based on subject
-   */
-  private extractThreadId(subject: string, messageId: string): string {
-    if (!subject) return messageId
-    
-    // Remove "Re:", "Fwd:", etc. prefixes and normalize
-    const cleanSubject = subject
-      .replace(/^(re|fwd|fw):\s*/i, '')
-      .trim()
-      .toLowerCase()
-    
-    // Use a hash of the clean subject as thread ID
-    return `thread_${cleanSubject}`
-  }
-
-  /**
-   * Simple hash function for thread grouping
-   */
-  private simpleHash(str: string): string {
-    let hash = 0
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(16)
-  }
 
   /**
    * Update email status (read, starred, etc.)

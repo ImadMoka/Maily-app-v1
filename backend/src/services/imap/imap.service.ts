@@ -1,4 +1,4 @@
-import Imap from 'node-imap'
+const Imap = require('node-imap')
 import { type ImapConnectionConfig, type ImapVerificationResult, type FetchEmailsResult, type EmailMessage, type EmailAddress } from './imap.types'
 
 export class ImapService {
@@ -54,6 +54,7 @@ export class ImapService {
     })
   }
 
+
   async fetchRecentEmails(config: ImapConnectionConfig, limit: number = 50): Promise<FetchEmailsResult> {
     return new Promise((resolve) => {
       const imap = new Imap({
@@ -77,7 +78,7 @@ export class ImapService {
       imap.once('ready', () => {
         clearTimeout(timeout)
         
-        imap.openBox('INBOX', true, (err, box) => {
+        imap.openBox('[Gmail]/All Mail', true, (err, box) => {
           if (err) {
             imap.end()
             resolve({
@@ -112,46 +113,43 @@ export class ImapService {
             const recentUids = results.slice(-limit)
             
             const fetch = imap.fetch(recentUids, {
-              bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
-              struct: true
+              bodies: '',
+              struct: true,
+              envelope: true,
+              extensions: ['X-GM-THRID'] // Gmail thread ID extension
             })
 
             const emails: EmailMessage[] = []
             let processedCount = 0
 
             fetch.on('message', (msg, seqno) => {
-              let headers: any = {}
+              let envelope: any = null
               let structure: any = null
-
-              msg.on('body', (stream, info) => {
-                let buffer = ''
-                stream.on('data', (chunk) => {
-                  buffer += chunk.toString('ascii')
-                })
-                stream.once('end', () => {
-                  headers = Imap.parseHeader(buffer)
-                })
-              })
+              let gmailThreadId: string | null = null
 
               msg.once('attributes', (attrs) => {
+                envelope = attrs.envelope
                 structure = attrs.struct
+                gmailThreadId = attrs['x-gm-thrid'] || null
               })
 
               msg.once('end', () => {
                 try {
-                  const email = this.parseEmailFromHeaders(headers, structure, seqno, recentUids[processedCount])
-                  if (email) {
-                    emails.push(email)
+                  const uid = recentUids[processedCount]
+                  if (uid !== undefined && envelope) {
+                    const email = this.parseEmailFromEnvelope(envelope, structure, seqno, uid, gmailThreadId)
+                    if (email) {
+                      emails.push(email)
+                    }
                   }
                 } catch (error) {
-                  console.error('Error parsing email:', error)
+                  console.error('Error parsing email from envelope:', error)
                 }
                 
                 processedCount++
                 if (processedCount === recentUids.length) {
                   imap.end()
                   
-                  // Sort by date (newest first)
                   emails.sort((a, b) => b.date.getTime() - a.date.getTime())
                   
                   resolve({
@@ -205,61 +203,48 @@ export class ImapService {
     })
   }
 
-  private parseEmailFromHeaders(headers: any, structure: any, seqno: number, uid: number): EmailMessage | null {
+  private parseEmailFromEnvelope(envelope: any, structure: any, seqno: number, uid: number, gmailThreadId: string | null = null): EmailMessage | null {
     try {
-      const from = this.parseEmailAddress(headers.from?.[0] || '')
-      const to = headers.to ? headers.to.map((addr: string) => this.parseEmailAddress(addr)) : []
-      const subject = headers.subject?.[0] || '(No Subject)'
-      const dateStr = headers.date?.[0] || ''
-      const date = dateStr ? new Date(dateStr) : new Date()
-
-      // Generate a simple preview (we'll enhance this later)
-      const preview = `Email from ${from.name || from.email} - ${subject.substring(0, 100)}`
-      
-      // Check for attachments in structure
+      const from = this.parseEnvelopeAddress(envelope.from?.[0])
+      const to = envelope.to ? envelope.to.map((addr: any) => this.parseEnvelopeAddress(addr)) : []
+      const cc = envelope.cc ? envelope.cc.map((addr: any) => this.parseEnvelopeAddress(addr)) : []
+      const subject = envelope.subject || '(No Subject)'
+      const date = envelope.date ? new Date(envelope.date) : new Date()
+      const messageId = envelope.messageId || envelope['message-id'] || `<${uid}.${date.getTime()}@maily-app.local>`
       const hasAttachments = this.hasAttachments(structure)
-      
-      // Calculate approximate size (we don't have actual size from headers)
-      const size = this.estimateEmailSize(headers, structure)
+      const size = this.estimateEmailSizeFromStructure(structure)
 
       return {
-        id: `${uid}-${seqno}`,
+        id: messageId,
         uid,
         subject,
         from,
         to,
+        cc,
         date,
-        preview,
+        preview: '',
         hasAttachments,
-        isRead: false, // We'll assume unread for now since we're reading readonly
-        size
+        isRead: false,
+        size,
+        gmailThreadId
       }
     } catch (error) {
-      console.error('Error parsing email headers:', error)
+      console.error('Error parsing email from envelope:', error)
       return null
     }
   }
 
-  private parseEmailAddress(addressStr: string): EmailAddress {
-    // Simple email address parsing
-    const match = addressStr.match(/^(.*?)\s*<(.+)>$/)
-    if (match) {
-      return {
-        name: match[1].replace(/"/g, '').trim(),
-        email: match[2].trim()
-      }
+
+  private parseEnvelopeAddress(envAddr: any): EmailAddress {
+    if (!envAddr?.mailbox || !envAddr?.host) {
+      return { email: 'unknown@unknown.com' }
     }
-    
-    // Just an email address
-    const emailMatch = addressStr.match(/([^\s]+@[^\s]+)/)
-    if (emailMatch) {
-      return {
-        email: emailMatch[1]
-      }
+    return {
+      email: `${envAddr.mailbox}@${envAddr.host}`,
+      name: envAddr.name || undefined
     }
-    
-    return { email: addressStr.trim() }
   }
+
 
   private hasAttachments(structure: any): boolean {
     if (!structure) return false
@@ -276,41 +261,22 @@ export class ImapService {
            (structure.disposition.type === 'attachment' || structure.disposition.type === 'inline')
   }
 
-  private estimateEmailSize(headers: any, structure: any): number {
-    // Simple size estimation based on headers and structure
-    let size = 0
-    
-    // Add header sizes
-    Object.values(headers).forEach((value: any) => {
-      if (Array.isArray(value)) {
-        value.forEach(v => size += (v ? v.toString().length : 0))
-      } else {
-        size += (value ? value.toString().length : 0)
-      }
-    })
-    
-    // Add estimated body size (rough approximation)
-    size += 1000 // Base body size assumption
-    
-    return size
+  private estimateEmailSizeFromStructure(structure: any): number {
+    if (!structure) return 1000
+    if (structure.size) return structure.size
+    if (Array.isArray(structure)) {
+      return structure.reduce((total, part) => total + (part.size || 500), 0)
+    }
+    return 1000
   }
 
+
   private formatImapError(error: Error): string {
-    const message = error.message.toLowerCase()
-    
-    if (message.includes('invalid credentials') || message.includes('authentication failed')) {
-      return 'Invalid email or password'
-    }
-    if (message.includes('getaddrinfo') || message.includes('enotfound')) {
-      return 'Invalid IMAP server address'
-    }
-    if (message.includes('timeout')) {
-      return 'Connection timeout - server may be unavailable'
-    }
-    if (message.includes('connection refused')) {
-      return 'Connection refused - check IMAP server and port'
-    }
-    
+    const msg = error.message.toLowerCase()
+    if (msg.includes('credential') || msg.includes('authentication')) return 'Invalid email or password'
+    if (msg.includes('getaddrinfo') || msg.includes('enotfound')) return 'Invalid IMAP server address'
+    if (msg.includes('timeout')) return 'Connection timeout'
+    if (msg.includes('refused')) return 'Connection refused - check server and port'
     return error.message
   }
 }

@@ -57,67 +57,33 @@ export class EmailRoutes {
         )
       }
 
-      // 6. Save emails to Supabase database for caching and search
-      let saveResult = null
-      if (result.emails && result.emails.length > 0) {
-        try {
-          saveResult = await this.emailDbService.saveEmails(userClient, account.id, result.emails)
-          console.log(`Email save result: ${saveResult.saved} saved, ${saveResult.skipped} skipped, ${saveResult.errors.length} errors`)
-        } catch (error) {
-          console.error('Failed to save emails to database:', error)
-          // Continue anyway - don't fail the entire request if database save fails
-        }
+      // 6. Transform and save emails (no need to re-fetch)
+      const emails = result.emails?.map(email => 
+        this.emailDbService.transformEmailForResponse(email, account.id)
+      ) || []
+
+      // Save to database asynchronously (don't wait)
+      if (emails.length > 0) {
+        this.emailDbService.saveEmails(userClient, account.id, result.emails)
+          .catch(error => console.error('Failed to save emails:', error))
       }
 
       return Response.json({
         success: true,
-        emails: result.emails || [],
-        totalCount: result.totalCount || 0,
+        emails,
+        totalCount: emails.length,
         limit,
-        accountEmail: account.email,
-        // Include database save stats for debugging
-        database: saveResult ? {
-          saved: saveResult.saved,
-          skipped: saveResult.skipped,
-          errors: saveResult.errors
-        } : null
+        accountEmail: account.email
       })
 
     } catch (error) {
-      console.error('Error in handleGetRecentEmails:', error)
+      console.error('Error fetching emails:', error)
       
-      // Handle specific auth errors
-      if (error instanceof Error) {
-        if (error.message.includes('Authorization header required') || 
-            error.message.includes('Invalid token') ||
-            error.message.includes('access denied')) {
-          return Response.json(
-            { 
-              error: error.message,
-              success: false
-            }, 
-            { status: 401 }
-          )
-        }
+      const message = error instanceof Error ? error.message : 'Internal server error'
+      const status = message.includes('token') || message.includes('auth') ? 401 :
+                    message.includes('Account not found') ? 404 : 500
 
-        if (error.message.includes('Account not found')) {
-          return Response.json(
-            { 
-              error: error.message,
-              success: false
-            }, 
-            { status: 404 }
-          )
-        }
-      }
-
-      return Response.json(
-        { 
-          error: 'Internal server error',
-          success: false
-        }, 
-        { status: 500 }
-      )
+      return Response.json({ error: message, success: false }, { status })
     }
   }
 

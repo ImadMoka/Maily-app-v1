@@ -86,10 +86,6 @@ export type Database = {
       emails: {
         Row: {
           account_id: string | null
-          attachment_count: number | null
-          bcc_addresses: Json | null
-          body_html: string | null
-          body_text: string | null
           cc_addresses: Json | null
           created_at: string | null
           date_received: string | null
@@ -97,35 +93,23 @@ export type Database = {
           folder: string | null
           from_address: string
           from_name: string | null
+          gmail_thread_id: number | null
           has_attachments: boolean | null
           id: string
           imap_uid: number
           is_deleted: boolean | null
           is_read: boolean | null
-          is_spam: boolean | null
           is_starred: boolean | null
-          is_thread_root: boolean | null
-          labels: Json | null
-          last_sync_at: string | null
           message_id: string
-          priority: string | null
-          reply_to_address: string | null
-          reply_to_name: string | null
+          preview_text: string | null
           size_bytes: number | null
           subject: string | null
-          sync_error: string | null
           sync_status: string | null
-          thread_id: string | null
-          thread_position: number | null
           to_addresses: Json | null
           updated_at: string | null
         }
         Insert: {
           account_id?: string | null
-          attachment_count?: number | null
-          bcc_addresses?: Json | null
-          body_html?: string | null
-          body_text?: string | null
           cc_addresses?: Json | null
           created_at?: string | null
           date_received?: string | null
@@ -133,35 +117,23 @@ export type Database = {
           folder?: string | null
           from_address: string
           from_name?: string | null
+          gmail_thread_id?: number | null
           has_attachments?: boolean | null
           id?: string
           imap_uid: number
           is_deleted?: boolean | null
           is_read?: boolean | null
-          is_spam?: boolean | null
           is_starred?: boolean | null
-          is_thread_root?: boolean | null
-          labels?: Json | null
-          last_sync_at?: string | null
           message_id: string
-          priority?: string | null
-          reply_to_address?: string | null
-          reply_to_name?: string | null
+          preview_text?: string | null
           size_bytes?: number | null
           subject?: string | null
-          sync_error?: string | null
           sync_status?: string | null
-          thread_id?: string | null
-          thread_position?: number | null
           to_addresses?: Json | null
           updated_at?: string | null
         }
         Update: {
           account_id?: string | null
-          attachment_count?: number | null
-          bcc_addresses?: Json | null
-          body_html?: string | null
-          body_text?: string | null
           cc_addresses?: Json | null
           created_at?: string | null
           date_received?: string | null
@@ -169,26 +141,18 @@ export type Database = {
           folder?: string | null
           from_address?: string
           from_name?: string | null
+          gmail_thread_id?: number | null
           has_attachments?: boolean | null
           id?: string
           imap_uid?: number
           is_deleted?: boolean | null
           is_read?: boolean | null
-          is_spam?: boolean | null
           is_starred?: boolean | null
-          is_thread_root?: boolean | null
-          labels?: Json | null
-          last_sync_at?: string | null
           message_id?: string
-          priority?: string | null
-          reply_to_address?: string | null
-          reply_to_name?: string | null
+          preview_text?: string | null
           size_bytes?: number | null
           subject?: string | null
-          sync_error?: string | null
           sync_status?: string | null
-          thread_id?: string | null
-          thread_position?: number | null
           to_addresses?: Json | null
           updated_at?: string | null
         }
@@ -204,71 +168,7 @@ export type Database = {
       }
     }
     Views: {
-      emails_with_accounts: {
-        Row: {
-          account_display_name: string | null
-          account_email: string | null
-          account_id: string | null
-          attachment_count: number | null
-          bcc_addresses: Json | null
-          body_html: string | null
-          body_text: string | null
-          cc_addresses: Json | null
-          created_at: string | null
-          date_received: string | null
-          date_sent: string | null
-          folder: string | null
-          from_address: string | null
-          from_name: string | null
-          has_attachments: boolean | null
-          id: string | null
-          imap_uid: number | null
-          is_deleted: boolean | null
-          is_read: boolean | null
-          is_spam: boolean | null
-          is_starred: boolean | null
-          is_thread_root: boolean | null
-          labels: Json | null
-          last_sync_at: string | null
-          message_id: string | null
-          priority: string | null
-          provider_type: string | null
-          reply_to_address: string | null
-          reply_to_name: string | null
-          size_bytes: number | null
-          subject: string | null
-          sync_error: string | null
-          sync_status: string | null
-          thread_id: string | null
-          thread_position: number | null
-          to_addresses: Json | null
-          updated_at: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "emails_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "email_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      unread_email_counts: {
-        Row: {
-          account_id: string | null
-          unread_count: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "emails_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "email_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never
