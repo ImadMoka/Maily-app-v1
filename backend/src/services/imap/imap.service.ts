@@ -78,7 +78,7 @@ export class ImapService {
       imap.once('ready', () => {
         clearTimeout(timeout)
         
-        imap.openBox('[Gmail]/All Mail', true, (err, box) => {
+        imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
           if (err) {
             imap.end()
             resolve({
@@ -89,7 +89,7 @@ export class ImapService {
           }
 
           // Search for recent emails
-          imap.search(['ALL'], (err, results) => {
+          imap.search(['ALL'], (err: any, results: any) => {
             if (err) {
               imap.end()
               resolve({
@@ -122,12 +122,12 @@ export class ImapService {
             const emails: EmailMessage[] = []
             let processedCount = 0
 
-            fetch.on('message', (msg, seqno) => {
+            fetch.on('message', (msg: any, seqno: number) => {
               let envelope: any = null
               let structure: any = null
               let gmailThreadId: string | null = null
 
-              msg.once('attributes', (attrs) => {
+              msg.once('attributes', (attrs: any) => {
                 envelope = attrs.envelope
                 structure = attrs.struct
                 gmailThreadId = attrs['x-gm-thrid'] || null
@@ -161,7 +161,7 @@ export class ImapService {
               })
             })
 
-            fetch.once('error', (err) => {
+            fetch.once('error', (err: any) => {
               imap.end()
               resolve({
                 success: false,

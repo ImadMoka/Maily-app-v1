@@ -3,7 +3,6 @@ import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage } from '../imap/imap.types'
 
 // Database types from shared schema
-type EmailRow = Database['public']['Tables']['emails']['Row']
 type EmailInsert = Database['public']['Tables']['emails']['Insert']
 
 export interface SaveEmailsResult {
@@ -75,31 +74,6 @@ export class EmailDatabaseService {
     }
   }
 
-  /**
-   * Get emails from database for an account
-   * Used for fast retrieval without IMAP calls
-   */
-  async getEmails(
-    userClient: SupabaseClient<Database>,
-    accountId: string,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<EmailRow[]> {
-    
-    const { data: emails, error } = await userClient
-      .from('emails')
-      .select('*')
-      .eq('account_id', accountId)
-      .eq('is_deleted', false)
-      .order('date_sent', { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (error) {
-      throw new Error(`Failed to fetch emails from database: ${error.message}`)
-    }
-
-    return emails || []
-  }
 
   /**
    * Convert IMAP EmailMessage to database insert format
@@ -129,72 +103,9 @@ export class EmailDatabaseService {
     }
   }
 
-  /**
-   * Transform email for API response (simpler than full database conversion)
-   */
-  public transformEmailForResponse(email: EmailMessage, accountId: string) {
-    return {
-      id: email.id || `<${email.uid}.${email.date.getTime()}@maily-app.local>`,
-      uid: email.uid,
-      subject: email.subject || '(No Subject)',
-      from: email.from,
-      to: email.to,
-      cc: email.cc,
-      date: email.date.toISOString(),
-      hasAttachments: email.hasAttachments,
-      isRead: email.isRead,
-      size: email.size,
-      gmailThreadId: email.gmailThreadId
-    }
-  }
-
-
   private generateMessageId(email: EmailMessage): string {
     return email.id && email.id.includes('@') ? email.id : 
            `<${email.uid}.${email.date.getTime()}@maily-app.local>`
   }
 
-
-  /**
-   * Update email status (read, starred, etc.)
-   */
-  async updateEmailStatus(
-    userClient: SupabaseClient<Database>,
-    emailId: string,
-    updates: Partial<Pick<EmailRow, 'is_read' | 'is_starred' | 'is_deleted'>>
-  ): Promise<boolean> {
-    
-    const { error } = await userClient
-      .from('emails')
-      .update(updates)
-      .eq('id', emailId)
-
-    if (error) {
-      throw new Error(`Failed to update email status: ${error.message}`)
-    }
-
-    return true
-  }
-
-  /**
-   * Get unread email count for an account
-   */
-  async getUnreadCount(
-    userClient: SupabaseClient<Database>,
-    accountId: string
-  ): Promise<number> {
-    
-    const { count, error } = await userClient
-      .from('emails')
-      .select('*', { count: 'exact', head: true })
-      .eq('account_id', accountId)
-      .eq('is_read', false)
-      .eq('is_deleted', false)
-
-    if (error) {
-      throw new Error(`Failed to get unread count: ${error.message}`)
-    }
-
-    return count || 0
-  }
 }

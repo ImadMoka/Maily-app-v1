@@ -57,22 +57,15 @@ export class EmailRoutes {
         )
       }
 
-      // 6. Transform and save emails (no need to re-fetch)
-      const emails = result.emails?.map(email => 
-        this.emailDbService.transformEmailForResponse(email, account.id)
-      ) || []
-
       // Save to database asynchronously (don't wait)
-      if (emails.length > 0) {
+      if (result.emails && result.emails.length > 0) {
         this.emailDbService.saveEmails(userClient, account.id, result.emails)
           .catch(error => console.error('Failed to save emails:', error))
       }
 
       return Response.json({
         success: true,
-        emails,
-        totalCount: emails.length,
-        limit,
+        totalCount: result.emails?.length || 0,
         accountEmail: account.email
       })
 
