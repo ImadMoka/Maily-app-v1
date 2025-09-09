@@ -7,7 +7,9 @@ export class ImapService {
   async verifyConnection(config: ImapConnectionConfig): Promise<ImapVerificationResult> {
     const startTime = Date.now()
     
+
     return new Promise((resolve) => {
+      console.log('Verifying connection to', config.username)
       const imap = new Imap({
         user: config.username,
         password: config.password,
@@ -28,6 +30,7 @@ export class ImapService {
 
       imap.once('ready', () => {
         clearTimeout(timeout)
+        console.log(`✅ IMAP connection SUCCESS for ${config.username} (${Date.now() - startTime}ms)`)
         imap.end()
         resolve({
           success: true,
