@@ -32,6 +32,14 @@ export interface EmailMessage {
   gmailThreadId?: string | null
 }
 
+export interface EmailBodyResult {
+  success: boolean
+  uid?: number
+  subject?: string
+  htmlBody?: string
+  error?: string
+}
+
 export interface FetchEmailsResult {
   success: boolean
   emails?: EmailMessage[]

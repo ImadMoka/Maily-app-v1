@@ -21,6 +21,11 @@ Bun.serve({
       return await emailRoutes.handleGetRecentEmails(req)
     }
 
+    // Email body route - matches /api/emails/:uid/body
+    if (url.pathname.match(/^\/api\/emails\/\d+\/body$/) && req.method === 'GET') {
+      return await emailRoutes.handleGetEmailBody(req)
+    }
+
     return Response.json({ error: 'Not found' }, { status: 404 });
   },
 });
