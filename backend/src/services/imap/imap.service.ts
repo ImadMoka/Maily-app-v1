@@ -32,6 +32,7 @@ export class ImapService {
         const connectionTime = Date.now() - startTime
         
         if (userContext?.userId && userContext?.accountId) {
+          console.log(`💾 Caching IMAP connection for user:${userContext.userId}, account:${userContext.accountId}`)
           imapConnectionCache.set(userContext.userId, userContext.accountId, imap)
         } else {
           imap.end()
@@ -68,9 +69,12 @@ export class ImapService {
       const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
       
       if (cachedConnection) {
+        console.log(`♻️ Using cached IMAP connection for user:${userContext.userId}, account:${userContext.accountId}`)
         return this.doFetchEmails(cachedConnection, limit, true)
       }
     }
+
+    console.log(`🆕 Creating new IMAP connection for ${config.host}`)
 
     // 2. If no cache, create new connection and do all the actions
     return new Promise((resolve) => {
@@ -122,9 +126,12 @@ export class ImapService {
       const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
       
       if (cachedConnection) {
+        console.log(`♻️ Using cached IMAP connection for user:${userContext.userId}, account:${userContext.accountId}`)
         return this.doFetchEmailBody(cachedConnection, uid, true)
       }
     }
+
+    console.log(`🆕 Creating new IMAP connection for ${config.host}`)
 
     // 2. If no cache, create new connection and do all the actions
     return new Promise((resolve) => {
