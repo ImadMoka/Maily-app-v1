@@ -21,16 +21,16 @@ export type Database = {
           email: string
           id: string
           imap_host: string
-          imap_port: number | null
-          imap_use_tls: boolean | null
+          imap_port: number
+          imap_use_tls: boolean
           imap_username: string
           is_active: boolean | null
           last_sync_at: string | null
           password: string
           provider_type: string | null
           smtp_host: string | null
-          smtp_port: number | null
-          smtp_use_tls: boolean | null
+          smtp_port: number
+          smtp_use_tls: boolean
           smtp_username: string | null
           sync_error: string | null
           sync_status: string | null
@@ -43,16 +43,16 @@ export type Database = {
           email: string
           id?: string
           imap_host: string
-          imap_port?: number | null
-          imap_use_tls?: boolean | null
+          imap_port?: number
+          imap_use_tls?: boolean
           imap_username: string
           is_active?: boolean | null
           last_sync_at?: string | null
           password: string
           provider_type?: string | null
           smtp_host?: string | null
-          smtp_port?: number | null
-          smtp_use_tls?: boolean | null
+          smtp_port?: number
+          smtp_use_tls?: boolean
           smtp_username?: string | null
           sync_error?: string | null
           sync_status?: string | null
@@ -65,16 +65,16 @@ export type Database = {
           email?: string
           id?: string
           imap_host?: string
-          imap_port?: number | null
-          imap_use_tls?: boolean | null
+          imap_port?: number
+          imap_use_tls?: boolean
           imap_username?: string
           is_active?: boolean | null
           last_sync_at?: string | null
           password?: string
           provider_type?: string | null
           smtp_host?: string | null
-          smtp_port?: number | null
-          smtp_use_tls?: boolean | null
+          smtp_port?: number
+          smtp_use_tls?: boolean
           smtp_username?: string | null
           sync_error?: string | null
           sync_status?: string | null
@@ -83,12 +83,107 @@ export type Database = {
         }
         Relationships: []
       }
+      emails: {
+        Row: {
+          account_id: string | null
+          cc_addresses: Json | null
+          created_at: string | null
+          date_received: string | null
+          date_sent: string
+          folder: string | null
+          from_address: string
+          from_name: string | null
+          gmail_thread_id: number | null
+          has_attachments: boolean | null
+          id: string
+          imap_uid: number
+          is_deleted: boolean | null
+          is_read: boolean | null
+          is_starred: boolean | null
+          message_id: string
+          preview_text: string | null
+          size_bytes: number | null
+          subject: string | null
+          sync_status: string | null
+          to_addresses: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          cc_addresses?: Json | null
+          created_at?: string | null
+          date_received?: string | null
+          date_sent: string
+          folder?: string | null
+          from_address: string
+          from_name?: string | null
+          gmail_thread_id?: number | null
+          has_attachments?: boolean | null
+          id?: string
+          imap_uid: number
+          is_deleted?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
+          message_id: string
+          preview_text?: string | null
+          size_bytes?: number | null
+          subject?: string | null
+          sync_status?: string | null
+          to_addresses?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          cc_addresses?: Json | null
+          created_at?: string | null
+          date_received?: string | null
+          date_sent?: string
+          folder?: string | null
+          from_address?: string
+          from_name?: string | null
+          gmail_thread_id?: number | null
+          has_attachments?: boolean | null
+          id?: string
+          imap_uid?: number
+          is_deleted?: boolean | null
+          is_read?: boolean | null
+          is_starred?: boolean | null
+          message_id?: string
+          preview_text?: string | null
+          size_bytes?: number | null
+          subject?: string | null
+          sync_status?: string | null
+          to_addresses?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_sync_progress: {
+        Args: { emails_processed: number; total_emails_estimated: number }
+        Returns: number
+      }
+      update_sync_job_progress: {
+        Args: {
+          job_id: string
+          new_emails_failed?: number
+          new_emails_processed: number
+          new_emails_skipped?: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

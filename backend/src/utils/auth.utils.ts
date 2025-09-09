@@ -15,7 +15,7 @@ export class AuthUtils {
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
     
     if (error || !user) {
-      throw new Error('Invalid token')
+      throw new Error('Invalid token: '+ token)
     }
 
     return { user, token }
