@@ -10,7 +10,10 @@ export default function EmailSetup() {
       Alert.alert('Sorry, we don\'t support your provider right now - we are working on it')
       return
     }
-    router.push('/(app)/email-setup-step2')
+    router.push({
+      pathname: '/(app)/email-setup-step2',
+      params: { email }
+    })
   }
 
   return (

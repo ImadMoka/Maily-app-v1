@@ -1,20 +1,63 @@
-import { View, Text, StyleSheet, TouchableOpacity, Linking, TextInput } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Linking, TextInput, Alert } from 'react-native'
 import { useState } from 'react'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
+import { useSession } from '../../src/context/SessionContext'
 
 export default function EmailSetupStep2() {
   const [appPassword, setAppPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { email } = useLocalSearchParams()
+  const { session } = useSession()
   
   function handleOpenGoogleAppPasswords() {
     Linking.openURL('https://myaccount.google.com/apppasswords')
   }
 
-  function handleFinish() {
+  async function handleFinish() {
     if (!appPassword.trim()) {
-      return // Don't allow finish if no password entered
+      return
     }
-    // TODO: Save password and go to main page
-    router.push('/(app)/(tabs)/')
+
+    if (!session?.access_token) {
+      Alert.alert('Error', 'Please sign in again')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await fetch('http://localhost:3000/api/accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          email: email,
+          password: appPassword.trim(),
+          imapHost: 'imap.gmail.com',
+          imapUsername: email,
+          imapPort: 993
+        })
+      })
+
+      const data = await response.json()
+
+      console.log('API Response:', { status: response.status, data })
+
+      if (response.ok && data.success) {
+        Alert.alert('Success', 'Email account setup complete!', [
+          { text: 'OK', onPress: () => router.push('/(app)/(tabs)/') }
+        ])
+      } else {
+        Alert.alert('Error', data.error || 'Failed to setup email account')
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Network error. Please try again.')
+      console.error('API call failed:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
 
@@ -43,11 +86,11 @@ export default function EmailSetupStep2() {
       />
       
       <TouchableOpacity 
-        style={[styles.finishButton, !appPassword.trim() && styles.finishButtonDisabled]} 
+        style={[styles.finishButton, (!appPassword.trim() || loading) && styles.finishButtonDisabled]} 
         onPress={handleFinish}
-        disabled={!appPassword.trim()}
+        disabled={!appPassword.trim() || loading}
       >
-        <Text style={styles.finishText}>Finish</Text>
+        <Text style={styles.finishText}>{loading ? 'Setting up...' : 'Finish'}</Text>
       </TouchableOpacity>
     </View>
   )
