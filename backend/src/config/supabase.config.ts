@@ -1,4 +1,3 @@
-import 'dotenv/config'
 
 export const supabaseConfig = {
   url: process.env.SUPABASE_URL!,

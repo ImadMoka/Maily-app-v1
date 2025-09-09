@@ -26,7 +26,7 @@ export default function Index() {
       <View style={styles.chatSection}>
         <View style={styles.chatContent}>
           <Text style={styles.noChatsText}>No chats</Text>
-          <TouchableOpacity style={styles.addAccountButton}>
+          <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
             <Text style={styles.addAccountText}>Add Email Account</Text>
           </TouchableOpacity>
         </View>
