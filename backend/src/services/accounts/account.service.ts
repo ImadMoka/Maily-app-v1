@@ -64,4 +64,15 @@ export class AccountService {
     }
     return account
   }
+
+  // Delete account by ID (RLS enforced - user can only delete their own accounts)
+  async deleteAccount(userClient: SupabaseClient<Database>, accountId: string, userId: string) {
+    const { error } = await userClient
+      .from('email_accounts')
+      .delete()
+      .eq('id', accountId)
+      .eq('user_id', userId)
+
+    if (error) throw new Error(`Failed to delete account: ${error.message}`)
+  }
 }

@@ -1,15 +1,14 @@
 const Imap = require('node-imap')
 import { simpleParser } from 'mailparser'
 import { type ImapConnectionConfig, type ImapVerificationResult, type FetchEmailsResult, type EmailMessage, type EmailAddress, type EmailBodyResult } from './imap.types'
+import { imapConnectionCache } from './imap-connection-cache'
 
 export class ImapService {
-  
-  async verifyConnection(config: ImapConnectionConfig): Promise<ImapVerificationResult> {
+
+  async verifyConnection(config: ImapConnectionConfig, userContext?: { userId: string, accountId: string }): Promise<ImapVerificationResult> {
     const startTime = Date.now()
-    
 
     return new Promise((resolve) => {
-      console.log('Verifying connection to', config.username)
       const imap = new Imap({
         user: config.username,
         password: config.password,
@@ -30,11 +29,17 @@ export class ImapService {
 
       imap.once('ready', () => {
         clearTimeout(timeout)
-        console.log(`✅ IMAP connection SUCCESS for ${config.username} (${Date.now() - startTime}ms)`)
-        imap.end()
+        const connectionTime = Date.now() - startTime
+        
+        if (userContext?.userId && userContext?.accountId) {
+          imapConnectionCache.set(userContext.userId, userContext.accountId, imap)
+        } else {
+          imap.end()
+        }
+        
         resolve({
           success: true,
-          connectionTime: Date.now() - startTime
+          connectionTime
         })
       })
 
@@ -58,8 +63,16 @@ export class ImapService {
     })
   }
 
+  async fetchRecentEmails(config: ImapConnectionConfig, limit: number = 50, userContext?: { userId: string, accountId: string }): Promise<FetchEmailsResult> {
+    if (userContext?.userId && userContext?.accountId) {
+      const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
+      
+      if (cachedConnection) {
+        return this.doFetchEmails(cachedConnection, limit, true)
+      }
+    }
 
-  async fetchRecentEmails(config: ImapConnectionConfig, limit: number = 50): Promise<FetchEmailsResult> {
+    // 2. If no cache, create new connection and do all the actions
     return new Promise((resolve) => {
       const imap = new Imap({
         user: config.username,
@@ -81,10 +94,104 @@ export class ImapService {
 
       imap.once('ready', () => {
         clearTimeout(timeout)
-        
-        imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
+        this.doFetchEmails(imap, limit, false).then(resolve)
+      })
+
+      imap.once('error', (error: Error) => {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: this.formatImapError(error)
+        })
+      })
+
+      try {
+        imap.connect()
+      } catch (error) {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown connection error'
+        })
+      }
+    })
+  }
+
+  async fetchEmailBody(config: ImapConnectionConfig, uid: number, userContext?: { userId: string, accountId: string }): Promise<EmailBodyResult> {
+    if (userContext?.userId && userContext?.accountId) {
+      const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
+      
+      if (cachedConnection) {
+        return this.doFetchEmailBody(cachedConnection, uid, true)
+      }
+    }
+
+    // 2. If no cache, create new connection and do all the actions
+    return new Promise((resolve) => {
+      const imap = new Imap({
+        user: config.username,
+        password: config.password,
+        host: config.host,
+        port: config.port,
+        tls: config.tls,
+        authTimeout: 15000,
+        connTimeout: 15000
+      })
+
+      const timeout = setTimeout(() => {
+        imap.destroy()
+        resolve({
+          success: false,
+          error: 'Connection timeout after 15 seconds'
+        })
+      }, 15000)
+
+      imap.once('ready', () => {
+        clearTimeout(timeout)
+        this.doFetchEmailBody(imap, uid, false).then(resolve)
+      })
+
+      imap.once('error', (error: Error) => {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: this.formatImapError(error)
+        })
+      })
+
+      try {
+        imap.connect()
+      } catch (error) {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown connection error'
+        })
+      }
+    })
+  }
+
+  private async doFetchEmails(imap: typeof Imap, limit: number, isFromCache: boolean): Promise<FetchEmailsResult> {
+    return new Promise((resolve) => {
+      if (imap.state !== 'authenticated') {
+        resolve({
+          success: false,
+          error: 'Connection not ready'
+        })
+        return
+      }
+
+      imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
+        if (err) {
+          resolve({
+            success: false,
+            error: this.formatImapError(err)
+          })
+          return
+        }
+
+        imap.search(['ALL'], (err: any, results: any) => {
           if (err) {
-            imap.end()
             resolve({
               success: false,
               error: this.formatImapError(err)
@@ -92,291 +199,218 @@ export class ImapService {
             return
           }
 
-          // Search for recent emails
-          imap.search(['ALL'], (err: any, results: any) => {
-            if (err) {
-              imap.end()
-              resolve({
-                success: false,
-                error: this.formatImapError(err)
-              })
-              return
-            }
+          if (!results || results.length === 0) {
+            resolve({
+              success: true,
+              emails: [],
+              totalCount: 0
+            })
+            return
+          }
 
-            if (!results || results.length === 0) {
+          const recentUids = results.slice(-limit)
+          
+          const fetch = imap.fetch(recentUids, {
+            bodies: '',
+            struct: true,
+            envelope: true,
+            extensions: ['X-GM-THRID']
+          })
+
+          const emails: EmailMessage[] = []
+          let processedCount = 0
+
+          fetch.on('message', (msg: any, seqno: number) => {
+            let uid = 0
+            let envelope: any = null
+            let structure: any = null
+
+            msg.on('attributes', (attrs: any) => {
+              uid = attrs.uid
+              envelope = attrs.envelope
+              structure = attrs.struct
+            })
+
+            msg.on('end', () => {
+              if (envelope) {
+                processedCount++
+                
+                const fromAddresses: EmailAddress[] = envelope.from?.map((addr: any) => ({
+                  name: addr.name || '',
+                  address: addr.mailbox + '@' + addr.host
+                })) || []
+
+                const toAddresses: EmailAddress[] = envelope.to?.map((addr: any) => ({
+                  name: addr.name || '',
+                  address: addr.mailbox + '@' + addr.host
+                })) || []
+
+                emails.push({
+                  uid,
+                  messageId: envelope.messageId || '',
+                  subject: envelope.subject || 'No Subject',
+                  from: fromAddresses,
+                  to: toAddresses,
+                  date: envelope.date || new Date(),
+                  hasAttachments: this.hasAttachments(structure),
+                  bodyPreview: '',
+                  size: this.calculateMessageSize(structure)
+                })
+
+                if (processedCount === recentUids.length) {
+                  emails.sort((a, b) => b.uid - a.uid)
+                  
+                  if (!isFromCache) {
+                    imap.end()
+                  }
+                  
+                  resolve({
+                    success: true,
+                    emails,
+                    totalCount: results.length
+                  })
+                }
+              }
+            })
+          })
+
+          fetch.once('error', (err: any) => {
+            if (!isFromCache) {
               imap.end()
+            }
+            resolve({
+              success: false,
+              error: this.formatImapError(err)
+            })
+          })
+
+          fetch.once('end', () => {
+            if (processedCount === 0) {
+              if (!isFromCache) {
+                imap.end()
+              }
               resolve({
                 success: true,
                 emails: [],
                 totalCount: 0
               })
-              return
             }
+          })
+        })
+      })
+    })
+  }
 
-            // Get the most recent emails by taking the last N UIDs
-            const recentUids = results.slice(-limit)
-            
-            const fetch = imap.fetch(recentUids, {
-              bodies: '',
-              struct: true,
-              envelope: true,
-              extensions: ['X-GM-THRID'] // Gmail thread ID extension
+  private async doFetchEmailBody(imap: typeof Imap, uid: number, isFromCache: boolean): Promise<EmailBodyResult> {
+    return new Promise((resolve) => {
+      if (imap.state !== 'authenticated') {
+        resolve({
+          success: false,
+          error: 'Connection not ready'
+        })
+        return
+      }
+
+      imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
+        if (err) {
+          resolve({
+            success: false,
+            error: this.formatImapError(err)
+          })
+          return
+        }
+
+        const fetch = imap.fetch([uid], {
+          bodies: '',
+          struct: true
+        })
+
+        let rawEmailBuffer = ''
+        let processedCount = 0
+
+        fetch.on('message', (msg: any, seqno: number) => {
+          msg.on('body', (stream: any, info: any) => {
+            stream.on('data', (chunk: any) => {
+              rawEmailBuffer += chunk.toString()
             })
+          })
 
-            const emails: EmailMessage[] = []
-            let processedCount = 0
-
-            fetch.on('message', (msg: any, seqno: number) => {
-              let envelope: any = null
-              let structure: any = null
-              let gmailThreadId: string | null = null
-
-              msg.once('attributes', (attrs: any) => {
-                envelope = attrs.envelope
-                structure = attrs.struct
-                gmailThreadId = attrs['x-gm-thrid'] || null
-              })
-
-              msg.once('end', () => {
-                try {
-                  const uid = recentUids[processedCount]
-                  if (uid !== undefined && envelope) {
-                    const email = this.parseEmailFromEnvelope(envelope, structure, seqno, uid, gmailThreadId)
-                    if (email) {
-                      emails.push(email)
-                    }
+          msg.on('end', () => {
+            processedCount++
+            
+            if (processedCount === 1) {
+              simpleParser(rawEmailBuffer)
+                .then((parsed) => {
+                  if (!isFromCache) {
+                    imap.end()
                   }
-                } catch (error) {
-                  console.error('Error parsing email from envelope:', error)
-                }
-                
-                processedCount++
-                if (processedCount === recentUids.length) {
-                  imap.end()
-                  
-                  emails.sort((a, b) => b.date.getTime() - a.date.getTime())
                   
                   resolve({
                     success: true,
-                    emails,
-                    totalCount: emails.length
+                    body: {
+                      text: parsed.text || '',
+                      html: parsed.html || '',
+                      subject: parsed.subject || '',
+                      from: parsed.from ? {
+                        name: parsed.from.text || '',
+                        address: parsed.from.value?.[0]?.address || ''
+                      } : { name: '', address: '' },
+                      date: parsed.date || new Date(),
+                      attachments: parsed.attachments?.map(att => ({
+                        filename: att.filename || 'unknown',
+                        contentType: att.contentType || 'application/octet-stream',
+                        size: att.size || 0
+                      })) || []
+                    }
                   })
-                }
-              })
-            })
-
-            fetch.once('error', (err: any) => {
-              imap.end()
-              resolve({
-                success: false,
-                error: this.formatImapError(err)
-              })
-            })
-
-            fetch.once('end', () => {
-              if (processedCount === 0) {
-                imap.end()
-                resolve({
-                  success: true,
-                  emails: [],
-                  totalCount: 0
                 })
-              }
-            })
+                .catch((parseError) => {
+                  if (!isFromCache) {
+                    imap.end()
+                  }
+                  resolve({
+                    success: false,
+                    error: 'Failed to parse email content'
+                  })
+                })
+            }
           })
         })
-      })
 
-      imap.once('error', (error: Error) => {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: this.formatImapError(error)
-        })
-      })
-
-      try {
-        imap.connect()
-      } catch (error) {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown connection error'
-        })
-      }
-    })
-  }
-
-  async fetchEmailBody(config: ImapConnectionConfig, uid: number): Promise<EmailBodyResult> {
-    return new Promise((resolve) => {
-      const imap = new Imap({
-        user: config.username,
-        password: config.password,
-        host: config.host,
-        port: config.port,
-        tls: config.tls,
-        authTimeout: 15000,
-        connTimeout: 15000
-      })
-
-      const timeout = setTimeout(() => {
-        imap.destroy()
-        resolve({
-          success: false,
-          error: 'Connection timeout after 15 seconds'
-        })
-      }, 15000)
-
-      imap.once('ready', () => {
-        clearTimeout(timeout)
-        
-        imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
-          if (err) {
+        fetch.once('error', (err: any) => {
+          if (!isFromCache) {
             imap.end()
-            resolve({
-              success: false,
-              error: this.formatImapError(err)
-            })
-            return
           }
-
-          const fetch = imap.fetch([uid], {
-            bodies: '',
-            struct: true
+          resolve({
+            success: false,
+            error: this.formatImapError(err)
           })
+        })
 
-          let rawEmailBuffer = ''
-          let processedCount = 0
-
-          fetch.on('message', (msg: any) => {
-            msg.on('body', (stream: any) => {
-              stream.on('data', (chunk: any) => {
-                rawEmailBuffer += chunk.toString()
-              })
-            })
-
-            msg.once('end', () => {
-              processedCount++
-            })
-          })
-
-          fetch.once('end', async () => {
-            imap.end()
-            
-            if (processedCount === 0 || !rawEmailBuffer) {
-              resolve({
-                success: false,
-                error: 'Email not found'
-              })
-              return
+        fetch.once('end', () => {
+          if (processedCount === 0) {
+            if (!isFromCache) {
+              imap.end()
             }
-
-            try {
-              const parsed = await simpleParser(rawEmailBuffer)
-              
-              resolve({
-                success: true,
-                uid,
-                subject: parsed.subject || '(No Subject)',
-                htmlBody: parsed.html || parsed.textAsHtml || parsed.text || ''
-              })
-            } catch (parseError) {
-              resolve({
-                success: false,
-                error: 'Failed to parse email content'
-              })
-            }
-          })
-
-          fetch.once('error', (err: any) => {
-            imap.end()
             resolve({
               success: false,
-              error: this.formatImapError(err)
+              error: 'Email not found'
             })
-          })
+          }
         })
       })
-
-      imap.once('error', (error: Error) => {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: this.formatImapError(error)
-        })
-      })
-
-      try {
-        imap.connect()
-      } catch (error) {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown connection error'
-        })
-      }
     })
   }
-
-  private parseEmailFromEnvelope(envelope: any, structure: any, seqno: number, uid: number, gmailThreadId: string | null = null): EmailMessage | null {
-    try {
-      const from = this.parseEnvelopeAddress(envelope.from?.[0])
-      const to = envelope.to ? envelope.to.map((addr: any) => this.parseEnvelopeAddress(addr)) : []
-      const cc = envelope.cc ? envelope.cc.map((addr: any) => this.parseEnvelopeAddress(addr)) : []
-      const subject = envelope.subject || '(No Subject)'
-      const date = envelope.date ? new Date(envelope.date) : new Date()
-      const messageId = envelope.messageId || envelope['message-id'] || `<${uid}.${date.getTime()}@maily-app.local>`
-      const hasAttachments = this.hasAttachments(structure)
-      const size = this.estimateEmailSizeFromStructure(structure)
-
-      return {
-        id: messageId,
-        uid,
-        subject,
-        from,
-        to,
-        cc,
-        date,
-        preview: '',
-        hasAttachments,
-        isRead: false,
-        size,
-        gmailThreadId
-      }
-    } catch (error) {
-      console.error('Error parsing email from envelope:', error)
-      return null
-    }
-  }
-
-
-  private parseEnvelopeAddress(envAddr: any): EmailAddress {
-    if (!envAddr?.mailbox || !envAddr?.host) {
-      return { email: 'unknown@unknown.com' }
-    }
-    return {
-      email: `${envAddr.mailbox}@${envAddr.host}`,
-      name: envAddr.name || undefined
-    }
-  }
-
 
   private hasAttachments(structure: any): boolean {
     if (!structure) return false
-    
-    // Check if structure indicates attachments
     if (Array.isArray(structure)) {
-      return structure.some(part => 
-        part.disposition && 
-        (part.disposition.type === 'attachment' || part.disposition.type === 'inline')
-      )
+      return structure.some(part => part.disposition && part.disposition.type.toLowerCase() === 'attachment')
     }
-    
-    return structure.disposition && 
-           (structure.disposition.type === 'attachment' || structure.disposition.type === 'inline')
+    return structure.disposition && structure.disposition.type.toLowerCase() === 'attachment'
   }
 
-  private estimateEmailSizeFromStructure(structure: any): number {
+  private calculateMessageSize(structure: any): number {
     if (!structure) return 1000
     if (structure.size) return structure.size
     if (Array.isArray(structure)) {
@@ -384,7 +418,6 @@ export class ImapService {
     }
     return 1000
   }
-
 
   private formatImapError(error: Error): string {
     const msg = error.message.toLowerCase()

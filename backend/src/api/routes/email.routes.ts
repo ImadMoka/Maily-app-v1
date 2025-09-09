@@ -44,8 +44,8 @@ export class EmailRoutes {
         tls: account.imap_use_tls
       }
 
-      // 5. Fetch emails using account's IMAP config
-      const result = await this.imapService.fetchRecentEmails(imapConfig, limit)
+      // 5. Fetch emails (uses cache automatically if available)
+      const result = await this.imapService.fetchRecentEmails(imapConfig, limit, { userId: user.id, accountId: account.id })
 
       if (!result.success) {
         return Response.json(
@@ -113,8 +113,8 @@ export class EmailRoutes {
         tls: account.imap_use_tls
       }
 
-      // 5. Fetch email body using account's IMAP config
-      const result = await this.imapService.fetchEmailBody(imapConfig, uid)
+      // 5. Fetch email body (uses cache automatically if available)
+      const result = await this.imapService.fetchEmailBody(imapConfig, uid, { userId: user.id, accountId: account.id })
 
       if (!result.success) {
         return Response.json(
