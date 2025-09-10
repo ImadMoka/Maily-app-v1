@@ -59,8 +59,17 @@ export class EmailRoutes {
 
       // Save to database asynchronously (don't wait)
       if (result.emails && result.emails.length > 0) {
+        console.log(`📧 Attempting to save ${result.emails.length} emails to database for account ${account.id}`)
         this.emailDbService.saveEmails(userClient, account.id, result.emails)
-          .catch(error => console.error('Failed to save emails:', error))
+          .then(saveResult => {
+            console.log(`✅ Email save result: saved=${saveResult.saved}, skipped=${saveResult.skipped}, errors=${saveResult.errors.length}`)
+            if (saveResult.errors.length > 0) {
+              console.error('📧 Email save errors:', saveResult.errors)
+            }
+          })
+          .catch(error => console.error('❌ Failed to save emails:', error))
+      } else {
+        console.log('📧 No emails to save or emails array is empty')
       }
 
       return Response.json({
