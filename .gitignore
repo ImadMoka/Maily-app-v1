@@ -38,3 +38,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Test files with sensitive data
 backend/browser-test-commands.js
+.DS_Store
