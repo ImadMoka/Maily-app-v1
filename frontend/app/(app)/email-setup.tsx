@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native'
 import { useState } from 'react'
 import { router } from 'expo-router'
+import { colors } from '../../src/constants'
 
 export default function EmailSetup() {
   const [email, setEmail] = useState('')
@@ -18,12 +19,15 @@ export default function EmailSetup() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.stepTitle}>1) Step One</Text>
+      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)/(tabs)/')}>
+        <Text style={styles.closeText}>✕</Text>
+      </TouchableOpacity>
+      <Text style={styles.stepTitle}>Step 1</Text>
       <Text style={styles.description}>Enter the email address you want to receive messages from</Text>
       
       <TextInput
         style={styles.emailInput}
-        placeholder="typ in your email"
+        placeholder="Type in your email address"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -40,41 +44,78 @@ export default function EmailSetup() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
-    padding: 20,
-    paddingTop: 60,
+    backgroundColor: colors.white,
+    paddingHorizontal: 32,
+    paddingTop: 80,
+    paddingBottom: 40,
   },
   stepTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 16,
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   description: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    fontSize: 18,
+    color: colors.primary,
+    opacity: 0.9,
+    marginBottom: 50,
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 20,
+    fontWeight: '500',
   },
   emailInput: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 15,
+    height: 56,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: 16,
+    paddingHorizontal: 20,
     fontSize: 16,
-    backgroundColor: 'white',
-    marginBottom: 20,
+    backgroundColor: colors.white,
+    marginBottom: 40,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4,
+    color: colors.black,
   },
   continueButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    marginTop: 40,
+    backgroundColor: colors.primary,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 25,
     alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    minHeight: 56,
+    justifyContent: 'center',
   },
   continueText: {
-    color: 'white',
+    color: colors.white,
     fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 60,
+    right: 32,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  closeText: {
+    fontSize: 20,
+    color: colors.primary,
     fontWeight: '600',
   },
 })

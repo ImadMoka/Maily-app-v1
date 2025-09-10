@@ -1,9 +1,29 @@
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
 import { colors } from '../../../src/constants';
 import { supabase } from '../../../src/lib/supabase';
 import { router } from 'expo-router';
+import { useSession } from '../../../src/context/SessionContext';
 
 export default function Index() {
+  const [accounts, setAccounts] = useState([])
+  const { session } = useSession()
+
+  useEffect(() => {
+    fetchAccounts()
+  }, [])
+
+  async function fetchAccounts() {
+    const response = await fetch('http://localhost:3000/api/accounts', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`
+      }
+    })
+    const data = await response.json()
+    setAccounts(data.accounts || [])
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut()
     router.replace('/(auth)/auth')
@@ -26,9 +46,11 @@ export default function Index() {
       <View style={styles.chatSection}>
         <View style={styles.chatContent}>
           <Text style={styles.noChatsText}>No chats</Text>
-          <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
-            <Text style={styles.addAccountText}>Add Email Account</Text>
-          </TouchableOpacity>
+          {accounts.length === 0 && (
+            <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
+              <Text style={styles.addAccountText}>Add Email Account</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -49,75 +71,99 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   headerSection: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    backgroundColor: colors.white,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
   },
   heading: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '700',
     color: colors.primary,
+    letterSpacing: -0.5,
   },
   logoutButton: {
     position: 'absolute',
-    left: 20,
-    bottom: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    right: 24,
+    bottom: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: colors.secondary,
+    borderRadius: 20,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   logoutText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.primary,
+    fontWeight: '600',
   },
   separator: {
     height: 1,
-    backgroundColor: '#e0e0e0',
-    marginHorizontal: 20,
+    backgroundColor: colors.secondary,
+    marginHorizontal: 0,
+    opacity: 0.6,
   },
   chatSection: {
     flex: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 80,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   chatContent: {
     alignItems: 'center',
   },
   noChatsText: {
-    fontSize: 16,
-    color: '#999',
-    fontStyle: 'italic',
-    marginBottom: 30,
+    fontSize: 18,
+    color: colors.primary,
+    opacity: 0.6,
+    marginBottom: 40,
+    fontWeight: '500',
   },
   addAccountButton: {
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    minWidth: 200,
+    alignItems: 'center',
   },
   addAccountText: {
     fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
+    color: colors.white,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   tabsSection: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 60,
+    minHeight: 80,
+    backgroundColor: colors.secondary,
+    opacity: 0.3,
   },
   tabsPlaceholder: {
-    fontSize: 14,
-    color: '#ccc',
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '500',
+    opacity: 0.7,
   },
 });
