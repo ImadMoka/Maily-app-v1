@@ -25,28 +25,30 @@ export class AccountRoutes {
         return Response.json({ error: 'Missing required fields' }, { status: 400 })
       }
 
-      // 3. Verify IMAP connection before creating account
+      // 3. Create user client (user privileges - RLS enforced) 
+      const userClient = AuthUtils.createUserClient(token)
+      
+      // 4. Create account with user permissions first to get account ID for caching
+      const account = await this.accountService.createAccount(userClient, {
+        email, password, imapHost, imapUsername, imapPort
+      }, user.id)
+
+      // 5. Verify IMAP connection (will be cached automatically with user context)
       const verificationResult = await this.imapService.verifyConnection({
         host: imapHost,
         port: imapPort,
         username: imapUsername,
         password: password,
         tls: true
-      })
+      }, { userId: user.id, accountId: account.id })
 
       if (!verificationResult.success) {
+        // If IMAP verification fails, clean up the created account
+        await this.accountService.deleteAccount(userClient, account.id, user.id)
         return Response.json({ 
           error: `IMAP verification failed: ${verificationResult.error}` 
         }, { status: 400 })
       }
-
-      // 4. Create user client (user privileges - RLS enforced)
-      const userClient = AuthUtils.createUserClient(token)
-      
-      // 5. Create account with user permissions (only after successful IMAP verification)
-      const account = await this.accountService.createAccount(userClient, {
-        email, password, imapHost, imapUsername, imapPort
-      }, user.id)
 
       return Response.json({
         success: true,

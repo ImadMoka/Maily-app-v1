@@ -44,8 +44,8 @@ export class EmailRoutes {
         tls: account.imap_use_tls
       }
 
-      // 5. Fetch emails using account's IMAP config
-      const result = await this.imapService.fetchRecentEmails(imapConfig, limit)
+      // 5. Fetch emails (uses cache automatically if available)
+      const result = await this.imapService.fetchRecentEmails(imapConfig, limit, { userId: user.id, accountId: account.id })
 
       if (!result.success) {
         return Response.json(
@@ -59,8 +59,17 @@ export class EmailRoutes {
 
       // Save to database asynchronously (don't wait)
       if (result.emails && result.emails.length > 0) {
+        console.log(`📧 Attempting to save ${result.emails.length} emails to database for account ${account.id}`)
         this.emailDbService.saveEmails(userClient, account.id, result.emails)
-          .catch(error => console.error('Failed to save emails:', error))
+          .then(saveResult => {
+            console.log(`✅ Email save result: saved=${saveResult.saved}, skipped=${saveResult.skipped}, errors=${saveResult.errors.length}`)
+            if (saveResult.errors.length > 0) {
+              console.error('📧 Email save errors:', saveResult.errors)
+            }
+          })
+          .catch(error => console.error('❌ Failed to save emails:', error))
+      } else {
+        console.log('📧 No emails to save or emails array is empty')
       }
 
       return Response.json({
@@ -113,8 +122,8 @@ export class EmailRoutes {
         tls: account.imap_use_tls
       }
 
-      // 5. Fetch email body using account's IMAP config
-      const result = await this.imapService.fetchEmailBody(imapConfig, uid)
+      // 5. Fetch email body (uses cache automatically if available)
+      const result = await this.imapService.fetchEmailBody(imapConfig, uid, { userId: user.id, accountId: account.id })
 
       if (!result.success) {
         return Response.json(
