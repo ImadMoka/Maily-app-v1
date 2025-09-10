@@ -15,6 +15,9 @@ prepare_react_native_project!
 
 target 'frontend' do
   use_expo_modules!
+  
+  # Fix for WatermelonDB simdjson dependency
+  pod 'simdjson', :path => '../node_modules/@nozbe/simdjson'
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];

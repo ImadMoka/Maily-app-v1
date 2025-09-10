@@ -4,6 +4,8 @@ import { colors } from '../../../src/constants';
 import { supabase } from '../../../src/lib/supabase';
 import { router } from 'expo-router';
 import { useSession } from '../../../src/context/SessionContext';
+import ContactsList from '../../../src/components/ContactsList';
+import { startAutoSync } from '../../../src/database/sync';
 
 export default function Index() {
   const [accounts, setAccounts] = useState([])
@@ -12,6 +14,14 @@ export default function Index() {
   useEffect(() => {
     fetchAccounts()
   }, [])
+
+  // 🔄 START BACKGROUND SYNC: Begin syncing contacts with cloud database
+  useEffect(() => {
+    const cleanup = startAutoSync()  // Returns cleanup function
+    
+    // 🧹 CLEANUP: Stop sync when component unmounts
+    return cleanup  // This stops the sync interval and real-time subscription
+  }, [])  // Empty dependency array = run once on mount
 
   async function fetchAccounts() {
     const response = await fetch('http://localhost:3000/api/accounts', {
@@ -42,16 +52,20 @@ export default function Index() {
       {/* Separator Line */}
       <View style={styles.separator} />
 
-      {/* Chat Section */}
-      <View style={styles.chatSection}>
-        <View style={styles.chatContent}>
-          <Text style={styles.noChatsText}>No chats</Text>
-          {accounts.length === 0 && (
+      {/* Content Section */}
+      <View style={styles.contentSection}>
+        {accounts.length === 0 ? (
+          /* 📧 NO ACCOUNTS: Show add account button */
+          <View style={styles.noAccountsContent}>
+            <Text style={styles.noAccountsText}>No email accounts</Text>
             <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
               <Text style={styles.addAccountText}>Add Email Account</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        ) : (
+          /* 📱 HAS ACCOUNTS: Show contacts list */
+          <ContactsList userId={session?.user?.id || ''} />
+        )}
       </View>
 
       {/* Separator Line */}
@@ -116,16 +130,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     opacity: 0.6,
   },
-  chatSection: {
+  contentSection: {
+    flex: 1,
+  },
+  noAccountsContent: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 32,
     paddingVertical: 40,
   },
-  chatContent: {
-    alignItems: 'center',
-  },
-  noChatsText: {
+  noAccountsText: {
     fontSize: 18,
     color: colors.primary,
     opacity: 0.6,
