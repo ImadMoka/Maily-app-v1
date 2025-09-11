@@ -1,4 +1,5 @@
-import { AccountService, type CreateAccountData } from '@/services/accounts/account.service'
+import { AccountService  } from '@/services/accounts/account.service'
+import { type CreateAccountData } from '@/services/accounts/account.types'
 import { ImapService } from '@/services/imap/imap.service'
 import { InitialSyncService } from '@/services/initial-sync/initial-sync.service'
 import { AuthUtils } from '@/utils/auth.utils'
