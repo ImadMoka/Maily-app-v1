@@ -50,6 +50,15 @@ export class AccountRoutes {
         }, { status: 400 })
       }
 
+      // Initialize contacts asynchronously - delegate to service layer
+      this.accountService.initializeContactsAsync(userClient, user.id, account, {
+        host: imapHost,
+        port: imapPort,
+        username: imapUsername,
+        password: password,
+        tls: true
+      })
+
       return Response.json({
         success: true,
         account: {
@@ -95,5 +104,6 @@ export class AccountRoutes {
       return Response.json({ error: 'Failed to get accounts' }, { status: 500 })
     }
   }
+
 }
 
