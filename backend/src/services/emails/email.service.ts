@@ -1,16 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage } from '../imap/imap.types'
+import type { SaveEmailsResult } from './emails.types'
 
 // Database types from shared schema
 type EmailInsert = Database['public']['Tables']['emails']['Insert']
 
-export interface SaveEmailsResult {
-  success: boolean
-  saved: number
-  skipped: number
-  errors: string[]
-}
 
 export class EmailDatabaseService {
 

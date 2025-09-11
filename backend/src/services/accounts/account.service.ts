@@ -1,13 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/../../shared/types/database.types'
+import type { CreateAccountData } from './account.types'
 
-export interface CreateAccountData {
-  email: string
-  password: string
-  imapHost: string
-  imapPort: number
-  imapUsername: string
-}
+
 
 export class AccountService {
   
