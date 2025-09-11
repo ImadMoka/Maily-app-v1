@@ -188,7 +188,8 @@ export class ImapService {
         return
       }
 
-      imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
+      // Try common folders in order
+      this.openBestFolder(imap, (err: any, box: any) => {
         if (err) {
           resolve({
             success: false,
@@ -197,113 +198,149 @@ export class ImapService {
           return
         }
 
-        imap.search(['ALL'], (err: any, results: any) => {
-          if (err) {
-            resolve({
-              success: false,
-              error: this.formatImapError(err)
-            })
-            return
-          }
+        this.fetchEmailsFromBox(imap, limit, isFromCache, resolve)
+      })
+    })
+  }
 
-          if (!results || results.length === 0) {
-            resolve({
-              success: true,
-              emails: [],
-              totalCount: 0
-            })
-            return
-          }
+  private openBestFolder(imap: any, callback: (err: any, box: any) => void) {
+    const folders = ['[Gmail]/All Mail', 'INBOX', 'All Mail', 'Alle Nachrichten']
+    
+    const tryFolder = (index: number) => {
+      if (index >= folders.length) {
+        callback(new Error('Could not open any mailbox folder'), null)
+        return
+      }
+      
+      imap.openBox(folders[index], true, (err: any, box: any) => {
+        if (err) {
+          tryFolder(index + 1)
+        } else {
+          callback(null, box)
+        }
+      })
+    }
+    
+    tryFolder(0)
+  }
 
-          const recentUids = results.slice(-limit)
-          
-          const fetch = imap.fetch(recentUids, {
-            bodies: '',
-            struct: true,
-            envelope: true,
-            extensions: ['X-GM-THRID']
-          })
+  private fetchEmailsFromBox(imap: any, limit: number, isFromCache: boolean, resolve: any) {
+    imap.search(['ALL'], (err: any, results: any) => {
+      if (err) {
+        resolve({
+          success: false,
+          error: this.formatImapError(err)
+        })
+        return
+      }
 
-          const emails: EmailMessage[] = []
-          let processedCount = 0
+      if (!results || results.length === 0) {
+        resolve({
+          success: true,
+          emails: [],
+          totalCount: 0
+        })
+        return
+      }
 
-          fetch.on('message', (msg: any, seqno: number) => {
-            let uid = 0
-            let envelope: any = null
-            let structure: any = null
+      const recentUids = results.slice(-limit)
+      
+      const fetch = imap.fetch(recentUids, {
+        bodies: '',
+        struct: true,
+        envelope: true,
+        extensions: ['X-GM-THRID']
+      })
 
-            msg.on('attributes', (attrs: any) => {
-              uid = attrs.uid
-              envelope = attrs.envelope
-              structure = attrs.struct
-            })
+      const emails: EmailMessage[] = []
+      let processedCount = 0
 
-            msg.on('end', () => {
-              if (envelope) {
-                processedCount++
-                
-                const fromAddresses: EmailAddress[] = envelope.from?.map((addr: any) => ({
-                  name: addr.name || '',
-                  address: addr.mailbox + '@' + addr.host
-                })) || []
+      fetch.on('message', (msg: any, seqno: number) => {
+        let uid = 0
+        let envelope: any = null
+        let structure: any = null
 
-                const toAddresses: EmailAddress[] = envelope.to?.map((addr: any) => ({
-                  name: addr.name || '',
-                  address: addr.mailbox + '@' + addr.host
-                })) || []
+        msg.on('attributes', (attrs: any) => {
+          uid = attrs.uid
+          envelope = attrs.envelope
+          structure = attrs.struct
+        })
 
-                emails.push({
-                  uid,
-                  messageId: envelope.messageId || '',
-                  subject: envelope.subject || 'No Subject',
-                  from: fromAddresses,
-                  to: toAddresses,
-                  date: envelope.date || new Date(),
-                  hasAttachments: this.hasAttachments(structure),
-                  bodyPreview: '',
-                  size: this.calculateMessageSize(structure)
-                })
-
-                if (processedCount === recentUids.length) {
-                  emails.sort((a, b) => b.uid - a.uid)
-                  
-                  if (!isFromCache) {
-                    imap.end()
-                  }
-                  
-                  resolve({
-                    success: true,
-                    emails,
-                    totalCount: results.length
-                  })
-                }
-              }
-            })
-          })
-
-          fetch.once('error', (err: any) => {
-            if (!isFromCache) {
-              imap.end()
+        msg.on('end', () => {
+          if (envelope) {
+            processedCount++
+            
+            const fromAddress: EmailAddress = envelope.from?.[0] ? {
+              name: envelope.from[0].name || '',
+              address: envelope.from[0].mailbox + '@' + envelope.from[0].host
+            } : {
+              name: '',
+              address: 'unknown@unknown.com'
             }
-            resolve({
-              success: false,
-              error: this.formatImapError(err)
-            })
-          })
 
-          fetch.once('end', () => {
-            if (processedCount === 0) {
+            const toAddresses: EmailAddress[] = envelope.to?.map((addr: any) => ({
+              name: addr.name || '',
+              address: addr.mailbox + '@' + addr.host
+            })) || []
+
+            // Extract CC addresses if available
+            const ccAddresses: EmailAddress[] = envelope.cc?.map((addr: any) => ({
+              name: addr.name || '',
+              address: addr.mailbox + '@' + addr.host
+            })) || []
+
+            emails.push({
+              uid,
+              messageId: envelope.messageId || '',
+              subject: envelope.subject || 'No Subject',
+              from: fromAddress,
+              to: toAddresses,
+              cc: ccAddresses,
+              date: envelope.date || new Date(),
+              hasAttachments: this.hasAttachments(structure),
+              bodyPreview: '',
+              isRead: false, // Default to unread
+              size: this.calculateMessageSize(structure)
+            })
+
+            if (processedCount === recentUids.length) {
+              emails.sort((a, b) => b.uid - a.uid)
+              
               if (!isFromCache) {
                 imap.end()
               }
+              
               resolve({
                 success: true,
-                emails: [],
-                totalCount: 0
+                emails,
+                totalCount: results.length
               })
             }
-          })
+          }
         })
+      })
+
+      fetch.once('error', (err: any) => {
+        if (!isFromCache) {
+          imap.end()
+        }
+        resolve({
+          success: false,
+          error: this.formatImapError(err)
+        })
+      })
+
+      fetch.once('end', () => {
+        if (processedCount === 0) {
+          if (!isFromCache) {
+            imap.end()
+          }
+          resolve({
+            success: true,
+            emails: [],
+            totalCount: 0
+          })
+        }
       })
     })
   }
@@ -318,7 +355,7 @@ export class ImapService {
         return
       }
 
-      imap.openBox('[Gmail]/All Mail', true, (err: any, box: any) => {
+      this.openBestFolder(imap, (err: any, box: any) => {
         if (err) {
           resolve({
             success: false,

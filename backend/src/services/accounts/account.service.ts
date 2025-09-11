@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/../../shared/types/database.types'
+import { ImapService, type ImapConnectionConfig } from '../imap/imap.service'
+import { ContactService, type ExtractContactsResult } from '../contacts/contact.service'
 
 export interface CreateAccountData {
   email: string
@@ -10,6 +12,8 @@ export interface CreateAccountData {
 }
 
 export class AccountService {
+  private imapService = new ImapService()
+  private contactService = new ContactService()
   
   // Create email account using user client (RLS enforced)
   async createAccount(userClient: SupabaseClient<Database>, data: CreateAccountData, userId: string) {
@@ -74,5 +78,44 @@ export class AccountService {
       .eq('user_id', userId)
 
     if (error) throw new Error(`Failed to delete account: ${error.message}`)
+  }
+
+  // Initialize contacts for a newly created account
+  async initializeContactsAsync(
+    userClient: SupabaseClient<Database>,
+    userId: string,
+    account: { id: string; email: string },
+    imapConfig: ImapConnectionConfig
+  ): Promise<void> {
+    try {
+      const result = await this.fetchContactsForNewAccount(userClient, userId, account, imapConfig)
+      console.log(`Contact initialization completed for account ${account.id}: ${result.newContacts} new contacts from ${result.totalProcessed} processed`)
+    } catch (error) {
+      console.error(`Contact initialization failed for account ${account.id}:`, error)
+      // Don't throw - we don't want contact extraction failures to affect account creation
+    }
+  }
+
+  private async fetchContactsForNewAccount(
+    userClient: SupabaseClient<Database>,
+    userId: string,
+    account: { id: string; email: string },
+    imapConfig: ImapConnectionConfig
+  ): Promise<ExtractContactsResult> {
+    const emailResult = await this.imapService.fetchRecentEmails(
+      imapConfig, 
+      200,
+      { userId, accountId: account.id }
+    )
+
+    if (!emailResult.success || !emailResult.emails?.length) {
+      return { newContacts: 0, totalProcessed: 0 }
+    }
+
+    return await this.contactService.extractAndSaveContacts(
+      userClient,
+      userId,
+      emailResult.emails
+    )
   }
 }
