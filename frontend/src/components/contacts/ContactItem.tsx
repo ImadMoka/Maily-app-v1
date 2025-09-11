@@ -5,8 +5,8 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
-import { Contact } from '../database/models/Contact'
-import { colors } from '../constants'
+import { Contact } from '../../database/models/Contact' // Updated path since we're now in contacts/ subfolder
+import { colors } from '../../constants' // Updated path since we're now in contacts/ subfolder
 
 // 🔮 REACTIVE CONTACT ITEM: Observes individual contact for automatic updates
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
@@ -43,8 +43,16 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
       </TouchableOpacity>
 
       {/* 🗑️ DELETE BUTTON: Remove this contact */}
-      <TouchableOpacity onPress={() => onDelete(contact)}>
-        <Text style={styles.delete}>✕</Text>
+      {/* TODO: Delete functionality is temporarily disabled until implementation is complete */}
+      <TouchableOpacity 
+        disabled={true} 
+        onPress={() => {
+          // TODO: Complete delete implementation
+          // onDelete(contact)
+          console.log('Delete functionality coming soon...')
+        }}
+      >
+        <Text style={[styles.delete, styles.deleteDisabled]}>✕</Text>
       </TouchableOpacity>
     </View>
   )
@@ -97,6 +105,10 @@ const styles = StyleSheet.create({
     color: '#ff4444',
     padding: 8,
     fontWeight: 'bold',
+  },
+  deleteDisabled: {
+    color: '#cccccc',
+    opacity: 0.5,
   },
 })
 

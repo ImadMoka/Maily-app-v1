@@ -6,11 +6,11 @@ import React, { useState } from 'react'
 import { View, Text, FlatList, StyleSheet, Alert } from 'react-native'
 import { Q } from '@nozbe/watermelondb'
 import { withObservables } from '@nozbe/watermelondb/react'
-import { database } from '../database'
-import { Contact } from '../database/models/Contact'
+import { database } from '../../database' // Updated path since we're now in contacts/ subfolder
+import { Contact } from '../../database/models/Contact' // Updated path since we're now in contacts/ subfolder
 import ContactItem from './ContactItem'
 import ContactForm from './ContactForm'
-import { colors } from '../constants'
+import { colors } from '../../constants' // Updated path since we're now in contacts/ subfolder
 
 // 🔮 MAIN REACTIVE COMPONENT: Observes the contacts query for list changes
 const ContactsList = withObservables(['userId'], ({ userId }) => ({
@@ -60,7 +60,11 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
   }
 
   // 🗑️ DELETE OPERATION: Remove contact from local database
+  // TODO: Delete functionality is temporarily disabled until implementation is complete
   const deleteContact = (contact: Contact) => {
+    // TODO: Implement proper delete functionality
+    console.log('Delete functionality coming soon for contact:', contact.name)
+    /*
     Alert.alert(
       'Delete Contact',
       `Are you sure you want to delete ${contact.name}?`,
@@ -79,6 +83,7 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         }
       ]
     )
+    */
   }
 
   // Handle edit button press
@@ -137,12 +142,6 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         )}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No contacts yet</Text>
-            <Text style={styles.emptySubtext}>Add your first contact to get started</Text>
-          </View>
-        }
       />
     </View>
   )
@@ -191,22 +190,6 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingBottom: 20,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: colors.primary,
-    opacity: 0.6,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: colors.primary,
-    opacity: 0.4,
   },
 })
 

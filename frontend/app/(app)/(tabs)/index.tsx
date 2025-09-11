@@ -4,11 +4,11 @@ import { colors } from '../../../src/constants';
 import { supabase } from '../../../src/lib/supabase';
 import { router } from 'expo-router';
 import { useSession } from '../../../src/context/SessionContext';
-import ContactsList from '../../../src/components/ContactsList';
+import ContactsList from '../../../src/components/contacts/ContactsList'; // Updated path for reorganized components
 import { startAutoSync } from '../../../src/database/sync';
 
 export default function Index() {
-  const [accounts, setAccounts] = useState([])
+  const [accounts, setAccounts] = useState(null)
   const { session } = useSession()
 
   useEffect(() => {
@@ -54,7 +54,12 @@ export default function Index() {
 
       {/* Content Section */}
       <View style={styles.contentSection}>
-        {accounts.length === 0 ? (
+        {accounts === null ? (
+          /* 🔄 LOADING: Show loading state while fetching accounts */
+          <View style={styles.loadingContent}>
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        ) : accounts.length === 0 ? (
           /* 📧 NO ACCOUNTS: Show add account button */
           <View style={styles.noAccountsContent}>
             <Text style={styles.noAccountsText}>No email accounts</Text>
@@ -132,6 +137,18 @@ const styles = StyleSheet.create({
   },
   contentSection: {
     flex: 1,
+  },
+  loadingContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 18,
+    color: colors.primary,
+    fontWeight: '500',
   },
   noAccountsContent: {
     flex: 1,

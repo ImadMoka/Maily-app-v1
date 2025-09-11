@@ -1,166 +1,157 @@
-// = BIDIRECTIONAL SYNCHRONIZATION ENGINE - Contacts
-// This bridges local SQLite and remote PostgreSQL using RPC functions
-// Key concept: Changes flow both ways - local to remote AND remote to local
+// This file handles SYNCHRONIZATION between your phone's local database and the remote server
+// Think of it like keeping two address books in sync - changes on one appear on the other
+// "Bidirectional" = changes can flow both ways (phone → server AND server → phone)
 
-import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync'
-import { database } from './index'
-import { supabase } from '../lib/supabase'
-// TODO: Import your supabase client when ready
-// import { supabase } from '../lib/supabase'
+// Import WatermelonDB sync functions - these handle the complex sync logic
+import { SyncDatabaseChangeSet, synchronize } from '@nozbe/watermelondb/sync' // Built-in sync engine
+import { database } from './index' // Our local database connection
+import { supabase } from '../lib/supabase' // Connection to remote Supabase database
 
-// =🔒 SYNC GUARD: Prevents concurrent synchronization calls
-// WatermelonDB throws "Concurrent synchronization is not allowed" if multiple sync calls overlap
-let isSyncing = false
+// This variable prevents multiple sync operations from running at the same time
+// Like a "Do Not Disturb" sign - only one sync can happen at a time to avoid conflicts
+let isSyncing = false // false = not syncing, true = currently syncing
 
-// 🎯 READY TO USE: Your PostgreSQL functions are already set up!
-// - pull(requesting_user_id UUID, last_pulled_ms BIGINT) ✅
-// - push(requesting_user_id UUID, changes JSONB) ✅
-// Just uncomment the RPC calls below and import your supabase client
+// Your server has these functions ready to use:
+// - pull(requesting_user_id UUID, last_pulled_ms BIGINT) - gets new changes from server
+// - push(requesting_user_id UUID, changes JSONB) - sends your changes to server
 
-// <� MAIN SYNC FUNCTION: Coordinates bidirectional contact synchronization  
-// This function is called every 10 seconds AND when remote changes are detected
+// The main function that synchronizes data between local device and remote server
+// async = this function can wait for network operations to complete
+// This runs every 10 seconds automatically, plus whenever remote data changes
 async function sync() {
-  // =🔒 GUARD: Prevent concurrent sync calls to avoid WatermelonDB errors
+  // Check if sync is already running - if yes, skip this attempt
   if (isSyncing) {
-    console.log('⚠️ Sync already in progress, skipping...')
-    return
+    console.log('⚠️ Sync already in progress, skipping...') // Log message for debugging
+    return // Exit function early
   }
 
-  try {
-    isSyncing = true
-    console.log('= Starting contacts sync...')
+  try { // try-catch block to handle any errors during sync
+    isSyncing = true // Set flag to prevent other sync attempts
+    console.log('Starting contacts sync...') // Log for debugging
     
-    // =� WATERMELONDB'S SYNCHRONIZE: Built-in sync engine with RPC-based approach
-    // This cleaner pattern moves sync logic to database-level stored procedures
-    await synchronize({
-      database,
+    // synchronize() is WatermelonDB's built-in function that handles all the complex sync logic
+    // It takes care of merging changes, handling conflicts, and updating the local database
+    await synchronize({ // await = wait for sync to complete
+      database, // Our local database to sync
       
-      // =� PULL CHANGES: Call Supabase RPC function to get incremental changes
-      // RPC functions are more efficient and handle complex sync logic server-side
+      // PULL CHANGES: Get new data from the server
+      // This function asks the server "what's new since last time I checked?"
       pullChanges: async ({ lastPulledAt, schemaVersion, migration }) => {
-        console.log('=� Calling contacts pull RPC with lastPulledAt:', lastPulledAt)
+        console.log('Calling server to get new changes. Last check was at:', lastPulledAt)
         
-        // TODO: Implement when supabase client is available
-        // =� SUPABASE RPC CALL: Server-side function handles all sync logic
-        // This RPC function should return { changes, timestamp } format
+        // Get the current logged-in user
+        const { data: { user } } = await supabase.auth.getUser() // Check who's logged in
+        if (!user) throw new Error('User not authenticated') // Must be logged in to sync
         
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) throw new Error('User not authenticated')
-        
+        // Call the server's "pull" function to get new changes
         const { data, error } = await supabase.rpc('pull', {
-          requesting_user_id: user.id,      // Your authenticated user ID
-          last_pulled_ms: lastPulledAt || 0 // Send timestamp for incremental sync
+          requesting_user_id: user.id, // Tell server which user is asking
+          last_pulled_ms: lastPulledAt || 0 // When did we last check? (0 = never)
         })
 
-        if (error) {
-          console.error('L Pull RPC error:', error)
-          throw error
+        if (error) { // If something went wrong
+          console.error('Error getting changes from server:', error)
+          throw error // Stop sync and show error
         }
 
-        // = TYPED RESPONSE: Supabase RPC returns structured sync data
+        // Server returns structured data with changes and timestamp
         const { changes, timestamp } = data as {
-          changes: SyncDatabaseChangeSet  // WatermelonDB's expected format
-          timestamp: number               // Server timestamp for next sync
+          changes: SyncDatabaseChangeSet // List of changes in WatermelonDB format
+          timestamp: number // When these changes were made (for next sync)
         }
 
-        console.log(' Pull RPC successful - changes:', changes)
-        return { changes, timestamp }
-        
-        
-        // Temporary MVP implementation - return empty changes
-        console.log('=� Pull RPC not implemented yet - working offline')
-        return { 
-          changes: { contacts: { created: [], updated: [], deleted: [] } }, 
-          timestamp: Date.now() 
-        }
+        console.log('Successfully got changes from server:', changes)
+        return { changes, timestamp } // Return data to WatermelonDB
       },
       
-      // =� PUSH CHANGES: Send local changes to Supabase via RPC
-      // RPC handles all the complex INSERT/UPDATE/DELETE logic server-side
+      // PUSH CHANGES: Send our local changes to the server
+      // This function tells the server "here are the changes I made locally"
       pushChanges: async ({ changes, lastPulledAt }) => {
-        console.log('=� Calling contacts push RPC with changes:', changes)
+        console.log('Sending our local changes to server:', changes)
         
-        // TODO: Implement when supabase client is available
-        // =� SUPABASE RPC CALL: Server-side function processes all changes atomically
-        // This RPC function should handle created/updated/deleted records in one transaction
-        
+        // Get the current logged-in user
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) throw new Error('User not authenticated')
         
+        // Call the server's "push" function to save our changes
         const { error } = await supabase.rpc('push', {
-          requesting_user_id: user.id,  // Your authenticated user ID
-          changes                        // All local changes in WatermelonDB format
+          requesting_user_id: user.id, // Tell server which user is sending changes
+          changes // All our local changes (created, updated, deleted contacts)
         })
 
-        if (error) {
-          console.error('L Push RPC error:', error)
-          throw error
+        if (error) { // If something went wrong
+          console.error('Error sending changes to server:', error)
+          throw error // Stop sync and show error
         }
 
-        console.log(' Push RPC successful')
-        
-        
-        // Temporary MVP implementation - log changes only
-        console.log('=� Push RPC not implemented yet - changes logged:', changes)
+        console.log('Successfully sent changes to server')
       },
       
-      // � SYNC CONFIGURATION: Handle edge cases
-      sendCreatedAsUpdated: false,  // Let server handle create/update logic properly
+      // Configuration: How to handle edge cases
+      sendCreatedAsUpdated: false, // Let server decide if something is new or updated
     })
     
-    console.log(' Contacts sync completed successfully')
-    // =� WatermelonDB's sync should automatically trigger UI updates via observables
-    // If UI doesn't update, the issue is likely in observable configuration, not sync
+    console.log('Contacts sync completed successfully')
+    // The UI will automatically update because we're using "observe()" in ContactsList
   } catch (error) {
-    console.error('L Contacts sync failed with error:', error)
-    // =� App continues working offline even if sync fails!
+    console.error('Sync failed with error:', error)
+    // App continues working offline even if sync fails!
   } finally {
-    // =🔓 RELEASE: Always release the sync lock, even if sync fails
-    isSyncing = false
+    // Always release the sync lock, even if sync fails
+    isSyncing = false // Allow future sync attempts
   }
 }
 
-// =� AUTO-SYNC ORCHESTRATION: Keeps contact data synchronized automatically
+// AUTO-SYNC ORCHESTRATION: Keeps contact data synchronized automatically
+// This function sets up automatic syncing in the background
 export function startAutoSync() {
-  // <� DELAYED INITIAL SYNC: Prevent immediate conflict with interval sync
-  // Start sync after a small delay to avoid concurrent calls
-  setTimeout(sync, 1000) // Initial sync 1 second after startup
+  // Start sync after a small delay to avoid conflicts
+  setTimeout(sync, 1000) // First sync 1 second after app starts
   
-  // � PERIODIC SYNC: Fallback to ensure eventual consistency
-  // Even if real-time fails, we sync every 10 seconds
+  // Set up recurring sync every 10 seconds
+  // This ensures data stays in sync even if real-time updates fail
   const interval = setInterval(sync, 10000) // Sync every 10 seconds
   
-  // TODO: Implement real-time sync when supabase client is available
-  // =4 REAL-TIME SYNC: Instant updates when remote data changes
-  // This is the magic that makes collaborative editing possible!
+  // TODO: Add real-time sync when ready
+  // Real-time sync listens for changes on the server and syncs immediately
+  // This is like getting a notification whenever someone else changes data
   /*
   const subscription = supabase
-    .channel('contacts')  // Create a subscription channel
+    .channel('contacts') // Create a subscription channel
     .on('postgres_changes', { 
-      event: '*',           // Listen to all events (INSERT, UPDATE, DELETE)
-      schema: 'public',     // PostgreSQL schema name
-      table: 'contacts'     // Table name to monitor
+      event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+      schema: 'public', // PostgreSQL schema name
+      table: 'contacts' // Table name to monitor
     }, () => {
-      console.log('= Remote contact change detected, syncing...')
-      sync()  // Immediately sync when someone else makes changes
+      console.log('Remote contact change detected, syncing...')
+      sync() // Immediately sync when someone else makes changes
     })
-    .subscribe()  // Activate the subscription
+    .subscribe() // Activate the subscription
   */
   
-  // >� CLEANUP FUNCTION: Call this when component unmounts
+  // Return a cleanup function to stop syncing when app closes
   return () => {
-    clearInterval(interval)      // Stop periodic sync
-    // subscription.unsubscribe()   // Stop real-time subscription (when implemented)
+    clearInterval(interval) // Stop periodic sync
+    // subscription.unsubscribe() // Stop real-time subscription (when implemented)
   }
 }
 
-// <� MANUAL SYNC: For testing and user-triggered sync
+// MANUAL SYNC: For testing and user-triggered sync (like pull-to-refresh)
 export function syncNow() {
-  return sync()
+  return sync() // Just call the main sync function
 }
 
-// =� HOW TO USE:
-// 1. Call startAutoSync() in your main App component
-// 2. Call the returned cleanup function when app closes
-// 3. Use syncNow() for manual refresh buttons
-// 4. All contact changes sync automatically in background!
+// HOW TO USE THIS FILE:
+// 1. In your main App component, call: startAutoSync()
+// 2. When app closes, call the returned cleanup function
+// 3. For manual refresh buttons, use: syncNow()
+// 4. All contact changes will sync automatically in the background!
+
+// WHAT HAPPENS DURING SYNC:
+// 1. Check if user is logged in
+// 2. Ask server: "what changed since last time?" (PULL)
+// 3. Get server's response with new/updated/deleted contacts
+// 4. Apply those changes to local database
+// 5. Send server our local changes (PUSH)
+// 6. Server saves our changes
+// 7. UI automatically updates because ContactsList is "observing" the data
