@@ -85,16 +85,16 @@ export class EmailDatabaseService {
       imap_uid: email.uid,
       message_id: this.generateMessageId(email),
       subject: email.subject || null,
-      from_address: email.from?.email || 'unknown@unknown.com',
+      from_address: email.from?.address || 'unknown@unknown.com',
       from_name: email.from?.name || null,
-      to_addresses: email.to ? email.to.map(addr => addr.email) : [],
-      cc_addresses: email.cc ? email.cc.map(addr => addr.email) : [],
+      to_addresses: email.to ? email.to.map(addr => addr.address) : [],
+      cc_addresses: email.cc ? email.cc.map(addr => addr.address) : [],
       date_sent: email.date.toISOString(),
       date_received: new Date().toISOString(),
-      preview_text: null,
+      preview_text: email.bodyPreview || null,
       size_bytes: email.size,
       has_attachments: email.hasAttachments,
-      is_read: email.isRead,
+      is_read: email.isRead || false,
       is_starred: false,
       is_deleted: false,
       folder: 'All Mail',
@@ -104,7 +104,7 @@ export class EmailDatabaseService {
   }
 
   private generateMessageId(email: EmailMessage): string {
-    return email.id && email.id.includes('@') ? email.id : 
+    return email.messageId && email.messageId.includes('@') ? email.messageId : 
            `<${email.uid}.${email.date.getTime()}@maily-app.local>`
   }
 

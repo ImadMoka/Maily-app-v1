@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      contacts: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_accounts: {
         Row: {
           created_at: string | null
@@ -173,6 +200,33 @@ export type Database = {
     Functions: {
       calculate_sync_progress: {
         Args: { emails_processed: number; total_emails_estimated: number }
+        Returns: number
+      }
+      create_contact: {
+        Args: {
+          contact_created_at: string
+          contact_email: string
+          contact_id: string
+          contact_name: string
+          contact_updated_at: string
+          contact_user_id: string
+        }
+        Returns: undefined
+      }
+      epoch_to_timestamp: {
+        Args: { epoch_ms: number }
+        Returns: string
+      }
+      pull: {
+        Args: { last_pulled_ms?: number; requesting_user_id: string }
+        Returns: Json
+      }
+      push: {
+        Args: { changes: Json; requesting_user_id: string }
+        Returns: undefined
+      }
+      timestamp_to_epoch: {
+        Args: { ts: string }
         Returns: number
       }
       update_sync_job_progress: {

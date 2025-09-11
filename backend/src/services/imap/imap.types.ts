@@ -14,20 +14,20 @@ export interface ImapVerificationResult {
 
 export interface EmailAddress {
   name?: string
-  email: string
+  address: string
 }
 
 export interface EmailMessage {
-  id: string
   uid: number
+  messageId?: string
   subject: string
   from: EmailAddress
   to: EmailAddress[]
-  cc: EmailAddress[]
+  cc?: EmailAddress[]
   date: Date
-  preview: string
+  bodyPreview?: string
   hasAttachments: boolean
-  isRead: boolean
+  isRead?: boolean
   size: number
   gmailThreadId?: string | null
 }

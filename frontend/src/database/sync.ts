@@ -105,7 +105,7 @@ async function sync() {
       },
       
       // � SYNC CONFIGURATION: Handle edge cases
-      sendCreatedAsUpdated: true,  // If record exists remotely, treat local "create" as "update"
+      sendCreatedAsUpdated: false,  // Let server handle create/update logic properly
     })
     
     console.log(' Contacts sync completed successfully')
