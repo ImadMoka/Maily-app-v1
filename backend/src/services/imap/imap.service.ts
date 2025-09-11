@@ -1,6 +1,6 @@
 const Imap = require('node-imap')
 import { simpleParser } from 'mailparser'
-import { type ImapConnectionConfig, type ImapVerificationResult, type FetchEmailsResult, type EmailMessage, type EmailAddress, type EmailBodyResult } from './imap.types'
+import { type ImapConnectionConfig, type ImapVerificationResult, type FetchEmailsResult, type EmailMessage, type EmailAddress } from './imap.types'
 import { imapConnectionCache } from './imap-connection-cache'
 
 export class ImapService {
@@ -99,63 +99,6 @@ export class ImapService {
       imap.once('ready', () => {
         clearTimeout(timeout)
         this.doFetchEmails(imap, limit, false).then(resolve)
-      })
-
-      imap.once('error', (error: Error) => {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: this.formatImapError(error)
-        })
-      })
-
-      try {
-        imap.connect()
-      } catch (error) {
-        clearTimeout(timeout)
-        resolve({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown connection error'
-        })
-      }
-    })
-  }
-
-  async fetchEmailBody(config: ImapConnectionConfig, uid: number, userContext?: { userId: string, accountId: string }): Promise<EmailBodyResult> {
-    if (userContext?.userId && userContext?.accountId) {
-      const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
-      
-      if (cachedConnection) {
-        console.log(`♻️ Using cached IMAP connection for user:${userContext.userId}, account:${userContext.accountId}`)
-        return this.doFetchEmailBody(cachedConnection, uid, true)
-      }
-    }
-
-    console.log(`🆕 Creating new IMAP connection for ${config.host}`)
-
-    // 2. If no cache, create new connection and do all the actions
-    return new Promise((resolve) => {
-      const imap = new Imap({
-        user: config.username,
-        password: config.password,
-        host: config.host,
-        port: config.port,
-        tls: config.tls,
-        authTimeout: 15000,
-        connTimeout: 15000
-      })
-
-      const timeout = setTimeout(() => {
-        imap.destroy()
-        resolve({
-          success: false,
-          error: 'Connection timeout after 15 seconds'
-        })
-      }, 15000)
-
-      imap.once('ready', () => {
-        clearTimeout(timeout)
-        this.doFetchEmailBody(imap, uid, false).then(resolve)
       })
 
       imap.once('error', (error: Error) => {
@@ -345,107 +288,6 @@ export class ImapService {
             totalCount: 0
           })
         }
-      })
-    })
-  }
-
-  private async doFetchEmailBody(imap: typeof Imap, uid: number, isFromCache: boolean): Promise<EmailBodyResult> {
-    return new Promise((resolve) => {
-      if (imap.state !== 'authenticated') {
-        resolve({
-          success: false,
-          error: 'Connection not ready'
-        })
-        return
-      }
-
-      this.openBestFolder(imap, (err: any, box: any) => {
-        if (err) {
-          resolve({
-            success: false,
-            error: this.formatImapError(err)
-          })
-          return
-        }
-
-        const fetch = imap.fetch([uid], {
-          bodies: '',
-          struct: true
-        })
-
-        let rawEmailBuffer = ''
-        let processedCount = 0
-
-        fetch.on('message', (msg: any, seqno: number) => {
-          msg.on('body', (stream: any, info: any) => {
-            stream.on('data', (chunk: any) => {
-              rawEmailBuffer += chunk.toString()
-            })
-          })
-
-          msg.on('end', () => {
-            processedCount++
-            
-            if (processedCount === 1) {
-              simpleParser(rawEmailBuffer)
-                .then((parsed) => {
-                  if (!isFromCache) {
-                    imap.end()
-                  }
-                  
-                  resolve({
-                    success: true,
-                    body: {
-                      text: parsed.text || '',
-                      html: parsed.html || '',
-                      subject: parsed.subject || '',
-                      from: parsed.from ? {
-                        name: parsed.from.text || '',
-                        address: parsed.from.value?.[0]?.address || ''
-                      } : { name: '', address: '' },
-                      date: parsed.date || new Date(),
-                      attachments: parsed.attachments?.map(att => ({
-                        filename: att.filename || 'unknown',
-                        contentType: att.contentType || 'application/octet-stream',
-                        size: att.size || 0
-                      })) || []
-                    }
-                  })
-                })
-                .catch((parseError) => {
-                  if (!isFromCache) {
-                    imap.end()
-                  }
-                  resolve({
-                    success: false,
-                    error: 'Failed to parse email content'
-                  })
-                })
-            }
-          })
-        })
-
-        fetch.once('error', (err: any) => {
-          if (!isFromCache) {
-            imap.end()
-          }
-          resolve({
-            success: false,
-            error: this.formatImapError(err)
-          })
-        })
-
-        fetch.once('end', () => {
-          if (processedCount === 0) {
-            if (!isFromCache) {
-              imap.end()
-            }
-            resolve({
-              success: false,
-              error: 'Email not found'
-            })
-          }
-        })
       })
     })
   }
