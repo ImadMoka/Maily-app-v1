@@ -32,16 +32,24 @@ export class ContactService {
       this.isValidEmail(email) && !this.isNoReplyEmail(email)
     )
 
-    // Save contacts with conflict handling
+    // Get the most recent email for preview and relationship data
+    const mostRecentEmail = emails.length > 0 ? emails[0] : null
+    
+    // Save contacts with conflict handling and email relationship data
     const { data } = await userClient
       .from('contacts')
       .upsert(
         validEmails.map(email => ({
           user_id: userId,
           email,
-          name: emailToName.get(email) || ''
+          name: emailToName.get(email) || '',
+          // Set email relationship fields for contacts that appear in the most recent email
+          last_email_id: mostRecentEmail && this.emailContainsAddress(mostRecentEmail, email) ? mostRecentEmail.id : null,
+          last_email_preview: mostRecentEmail && this.emailContainsAddress(mostRecentEmail, email) ? this.extractPreview(mostRecentEmail.preview_text) : null,
+          last_email_at: mostRecentEmail && this.emailContainsAddress(mostRecentEmail, email) ? mostRecentEmail.date_sent : null,
+          is_read: true  // Default to read for now, will implement logic later
         })),
-        { onConflict: 'user_id,email', ignoreDuplicates: true }
+        { onConflict: 'user_id,email', ignoreDuplicates: false }
       )
       .select('id')
 
@@ -74,5 +82,21 @@ export class ContactService {
   private isNoReplyEmail(email: string): boolean {
     return ['noreply', 'no-reply', 'donotreply', 'mailer-daemon', 'postmaster']
       .some(pattern => email.includes(pattern))
+  }
+
+  private emailContainsAddress(email: EmailMessage, address: string): boolean {
+    const allAddresses = [
+      email.from?.address,
+      ...(email.to || []).map(addr => addr.address),
+      ...(email.cc || []).map(addr => addr.address)
+    ].filter(Boolean)
+    
+    return allAddresses.some(addr => addr?.toLowerCase() === address.toLowerCase())
+  }
+
+  private extractPreview(text: string | null | undefined): string | null {
+    if (!text) return null
+    // Extract first 150 characters, removing extra whitespace
+    return text.trim().substring(0, 150).replace(/\s+/g, ' ')
   }
 }
