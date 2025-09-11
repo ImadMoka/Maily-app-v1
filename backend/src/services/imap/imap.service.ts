@@ -259,11 +259,14 @@ export class ImapService {
         let uid = 0
         let envelope: any = null
         let structure: any = null
+        let gmailThreadId: string | null = null
 
         msg.on('attributes', (attrs: any) => {
           uid = attrs.uid
           envelope = attrs.envelope
           structure = attrs.struct
+          // Extract Gmail thread ID from X-GM-THRID extension
+          gmailThreadId = attrs['x-gm-thrid'] ? String(attrs['x-gm-thrid']) : null
         })
 
         msg.on('end', () => {
@@ -300,7 +303,8 @@ export class ImapService {
               hasAttachments: this.hasAttachments(structure),
               bodyPreview: '',
               isRead: false, // Default to unread
-              size: this.calculateMessageSize(structure)
+              size: this.calculateMessageSize(structure),
+              gmailThreadId: gmailThreadId
             })
 
             if (processedCount === recentUids.length) {

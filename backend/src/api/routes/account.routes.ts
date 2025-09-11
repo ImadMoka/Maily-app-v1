@@ -1,10 +1,12 @@
 import { AccountService, type CreateAccountData } from '@/services/accounts/account.service'
 import { ImapService } from '@/services/imap/imap.service'
+import { InitialSyncService } from '@/services/initial-sync/initial-sync.service'
 import { AuthUtils } from '@/utils/auth.utils'
 
 export class AccountRoutes {
   private accountService = new AccountService()
   private imapService = new ImapService()
+  private initialSyncService = new InitialSyncService()
 
   // Create new email account
   async handleCreateAccount(request: Request): Promise<Response> {
@@ -50,13 +52,27 @@ export class AccountRoutes {
         }, { status: 400 })
       }
 
-      // Initialize contacts asynchronously - delegate to service layer
-      this.accountService.initializeContactsAsync(userClient, user.id, account, {
-        host: imapHost,
-        port: imapPort,
-        username: imapUsername,
-        password: password,
-        tls: true
+      // Initialize emails and contacts in background (non-blocking)
+      console.log(`🔄 Starting background initial sync for account: ${account.email}`)
+      this.initialSyncService.performInitialSync(
+        userClient,
+        user.id,
+        account.id,
+        {
+          host: imapHost,
+          port: imapPort,
+          username: imapUsername,
+          password: password,
+          tls: true
+        }
+      ).then(syncResult => {
+        if (syncResult.success) {
+          console.log(`✅ Background sync completed for ${account.email}: ${syncResult.emailsProcessed} emails, ${syncResult.contactsProcessed} contacts`)
+        } else {
+          console.error(`⚠️ Background sync had errors for ${account.email}: ${syncResult.errors.join(', ')}`)
+        }
+      }).catch(error => {
+        console.error(`❌ Background sync failed for ${account.email}:`, error)
       })
 
       return Response.json({
