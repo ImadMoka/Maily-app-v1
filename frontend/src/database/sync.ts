@@ -8,6 +8,10 @@ import { supabase } from '../lib/supabase'
 // TODO: Import your supabase client when ready
 // import { supabase } from '../lib/supabase'
 
+// =🔒 SYNC GUARD: Prevents concurrent synchronization calls
+// WatermelonDB throws "Concurrent synchronization is not allowed" if multiple sync calls overlap
+let isSyncing = false
+
 // 🎯 READY TO USE: Your PostgreSQL functions are already set up!
 // - pull(requesting_user_id UUID, last_pulled_ms BIGINT) ✅
 // - push(requesting_user_id UUID, changes JSONB) ✅
@@ -16,7 +20,14 @@ import { supabase } from '../lib/supabase'
 // <� MAIN SYNC FUNCTION: Coordinates bidirectional contact synchronization  
 // This function is called every 10 seconds AND when remote changes are detected
 async function sync() {
+  // =🔒 GUARD: Prevent concurrent sync calls to avoid WatermelonDB errors
+  if (isSyncing) {
+    console.log('⚠️ Sync already in progress, skipping...')
+    return
+  }
+
   try {
+    isSyncing = true
     console.log('= Starting contacts sync...')
     
     // =� WATERMELONDB'S SYNCHRONIZE: Built-in sync engine with RPC-based approach
@@ -103,13 +114,17 @@ async function sync() {
   } catch (error) {
     console.error('L Contacts sync failed with error:', error)
     // =� App continues working offline even if sync fails!
+  } finally {
+    // =🔓 RELEASE: Always release the sync lock, even if sync fails
+    isSyncing = false
   }
 }
 
 // =� AUTO-SYNC ORCHESTRATION: Keeps contact data synchronized automatically
 export function startAutoSync() {
-  // <� IMMEDIATE SYNC: Start with fresh data when app launches
-  sync() // Initial sync on app startup
+  // <� DELAYED INITIAL SYNC: Prevent immediate conflict with interval sync
+  // Start sync after a small delay to avoid concurrent calls
+  setTimeout(sync, 1000) // Initial sync 1 second after startup
   
   // � PERIODIC SYNC: Fallback to ensure eventual consistency
   // Even if real-time fails, we sync every 10 seconds
