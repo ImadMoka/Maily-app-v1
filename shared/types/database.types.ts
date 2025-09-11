@@ -19,6 +19,10 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          is_read: boolean | null
+          last_email_at: string | null
+          last_email_id: string | null
+          last_email_preview: string | null
           name: string
           updated_at: string | null
           user_id: string
@@ -27,6 +31,10 @@ export type Database = {
           created_at?: string | null
           email: string
           id?: string
+          is_read?: boolean | null
+          last_email_at?: string | null
+          last_email_id?: string | null
+          last_email_preview?: string | null
           name: string
           updated_at?: string | null
           user_id: string
@@ -35,11 +43,23 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
+          is_read?: boolean | null
+          last_email_at?: string | null
+          last_email_id?: string | null
+          last_email_preview?: string | null
           name?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_last_email_id_fkey"
+            columns: ["last_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_accounts: {
         Row: {
