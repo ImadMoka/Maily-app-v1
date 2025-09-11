@@ -4,11 +4,3 @@ export interface InitialSyncResult {
     contactsProcessed: number
     errors: string[]
   }
-  
-  export interface ProcessedContact {
-    email: string
-    name: string
-    lastEmailId?: string
-    lastEmailPreview?: string
-    lastEmailAt?: string
-  }

@@ -16,7 +16,8 @@ export class EmailDatabaseService {
   async saveEmails(
     userClient: SupabaseClient<Database>, 
     accountId: string, 
-    emails: EmailMessage[]
+    emails: EmailMessage[],
+    returnIdMap: boolean = false
   ): Promise<SaveEmailsResult> {
     
     if (emails.length === 0) {
@@ -24,36 +25,58 @@ export class EmailDatabaseService {
         success: true,
         saved: 0,
         skipped: 0,
-        errors: []
+        errors: [],
+        emailIdMap: returnIdMap ? new Map() : undefined
       }
     }
 
     let saved = 0
     let skipped = 0
     const errors: string[] = []
+    const emailIdMap = returnIdMap ? new Map<string, string>() : undefined
 
     for (const email of emails) {
       try {
         // Convert IMAP email to database format
         const dbEmail = this.convertImapEmailToDbFormat(email, accountId)
         
-        // Use upsert to handle duplicates gracefully
-        const { error } = await userClient
+        // Use upsert to handle duplicates gracefully, return ID if needed
+        const { data, error } = await userClient
           .from('emails')
           .upsert(dbEmail, {
             onConflict: 'account_id,message_id',
-            ignoreDuplicates: true
+            ignoreDuplicates: false
           })
+          .select(returnIdMap ? 'id' : undefined)
 
         if (error) {
           // Check if it's a duplicate conflict (expected)
           if (error.code === '23505' || error.message.includes('duplicate')) {
             skipped++
+            
+            // For duplicates, get existing ID if needed
+            if (returnIdMap && emailIdMap) {
+              const { data: existing } = await userClient
+                .from('emails')
+                .select('id')
+                .eq('account_id', accountId)
+                .eq('message_id', dbEmail.message_id)
+                .single()
+              
+              if (existing?.id) {
+                emailIdMap.set(email.messageId || '', existing.id)
+              }
+            }
           } else {
             errors.push(`Email ${email.subject}: ${error.message}`)
           }
         } else {
           saved++
+          
+          // Track email ID mapping if requested
+          if (returnIdMap && emailIdMap && data && data.length > 0 && data[0]?.id) {
+            emailIdMap.set(email.messageId || '', data[0].id)
+          }
         }
 
       } catch (error) {
@@ -65,7 +88,8 @@ export class EmailDatabaseService {
       success: errors.length === 0,
       saved,
       skipped,
-      errors
+      errors,
+      emailIdMap
     }
   }
 
