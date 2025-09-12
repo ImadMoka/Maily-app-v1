@@ -134,6 +134,7 @@ export type Database = {
         Row: {
           account_id: string | null
           cc_addresses: Json | null
+          contact_id: string | null
           created_at: string | null
           date_received: string | null
           date_sent: string
@@ -158,6 +159,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           cc_addresses?: Json | null
+          contact_id?: string | null
           created_at?: string | null
           date_received?: string | null
           date_sent: string
@@ -182,6 +184,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           cc_addresses?: Json | null
+          contact_id?: string | null
           created_at?: string | null
           date_received?: string | null
           date_sent?: string
@@ -209,6 +212,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

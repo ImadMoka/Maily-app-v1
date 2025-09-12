@@ -50,32 +50,30 @@ export class InitialSyncService {
       const emails = emailResult.emails
       console.log(`📧 Processing ${emails.length} emails in single pass...`)
 
-      // 2. Save all emails to database (with ID mapping for contacts)
+      // 2. Extract and save contacts first
+      const contacts = this.contactService.extractContactsFromEmails(emails, new Map())
+      
+      if (contacts.length > 0) {
+        const contactResult = await this.contactService.saveContactsWithRelationships(
+          userClient,
+          userId,
+          contacts
+        )
+        
+        contactsProcessed = contactResult.saved
+        errors.push(...contactResult.errors)
+      }
+
+      // 3. Save emails with automatic contact linking
       const emailSaveResult = await this.emailService.saveEmails(
         userClient,
         accountId,
-        emails,
-        true // Return ID mapping for contact relationships
+        userId,
+        emails
       )
       
       emailsProcessed = emailSaveResult.saved + emailSaveResult.skipped
       errors.push(...emailSaveResult.errors)
-
-      // 3. Extract and save contacts with email relationships
-      if (emailSaveResult.emailIdMap && emailSaveResult.emailIdMap.size > 0) {
-        const contacts = this.contactService.extractContactsFromEmails(emails, emailSaveResult.emailIdMap)
-        
-        if (contacts.length > 0) {
-          const contactResult = await this.contactService.saveContactsWithRelationships(
-            userClient,
-            userId,
-            contacts
-          )
-          
-          contactsProcessed = contactResult.saved
-          errors.push(...contactResult.errors)
-        }
-      }
 
       console.log(`✅ Initial sync completed: ${emailsProcessed} emails, ${contactsProcessed} contacts, ${errors.length} errors`)
 
@@ -98,5 +96,6 @@ export class InitialSyncService {
       }
     }
   }
+
 
 }
