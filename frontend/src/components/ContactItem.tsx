@@ -1,14 +1,11 @@
-// 🔮 INDIVIDUAL CONTACT COMPONENT: Observes a single contact for updates
-// This ensures that updates to individual contacts trigger re-renders
-// Following the same pattern as TodoItem in your todo app
-
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { Contact } from '../database/models/Contact'
+import { markContactAsRead } from '../services/ContactReadingService'
 import { colors } from '../constants'
 
-// 🔮 REACTIVE CONTACT ITEM: Observes individual contact for automatic updates
+// 🔮 REACTIVE CONTACT ITEM: Auto-updates when contact changes via WatermelonDB observables
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
   contact: contact.observe(), // 🔔 Observe individual contact for updates
 }))(({ contact, onEdit, onDelete }: { 
@@ -17,7 +14,16 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
   onDelete: (contact: Contact) => void 
 }) => {
 
-  // Get initials for avatar display (like your todo app's checkbox)
+  // 📖 HANDLE CONTACT TAP: Mark as read if unread, edit if already read
+  const handleContactTap = async () => {
+    if (!contact.isRead) {
+      await markContactAsRead(contact)
+    } else {
+      onEdit(contact)
+    }
+  }
+
+  // Get initials for avatar display
   const getInitials = () => {
     if (contact.name.trim()) {
       const nameParts = contact.name.trim().split(' ')
@@ -30,19 +36,23 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
   }
 
   return (
-    <View style={styles.contact}>
-      {/* 👤 AVATAR: Shows initials like todo checkbox */}
+    <View style={[styles.contact, contact.isRead && { opacity: 0.6 }]}>
+      {/* 👤 AVATAR: Shows initials */}
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{getInitials()}</Text>
       </View>
 
-      {/* 📝 CONTACT INFO: Tap anywhere to edit */}
-      <TouchableOpacity style={styles.contactContent} onPress={() => onEdit(contact)}>
-        <Text style={styles.name}>{contact.name}</Text>
+      {/* 📝 CONTACT INFO: Tap to read or edit */}
+      <TouchableOpacity style={styles.contactContent} onPress={handleContactTap}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{contact.name}</Text>
+          {/* 🟢 UNREAD INDICATOR: Green dot for unread contacts */}
+          {!contact.isRead && <View style={styles.unreadDot} />}
+        </View>
         <Text style={styles.email}>{contact.email}</Text>
       </TouchableOpacity>
 
-      {/* 🗑️ DELETE BUTTON: Remove this contact */}
+      {/* 🗑️ DELETE BUTTON */}
       <TouchableOpacity onPress={() => onDelete(contact)}>
         <Text style={styles.delete}>✕</Text>
       </TouchableOpacity>
@@ -81,16 +91,28 @@ const styles = StyleSheet.create({
   contactContent: {
     flex: 1,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   name: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
-    marginBottom: 2,
+    flex: 1,
   },
   email: {
     fontSize: 14,
     color: colors.primary,
     opacity: 0.7,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#28a745',
+    marginLeft: 8,
   },
   delete: {
     fontSize: 18,
