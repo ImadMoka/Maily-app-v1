@@ -1,36 +1,27 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage } from '../imap/imap.types'
+import type { SaveEmailsResult } from './emails.types'
 
 // Database types from shared schema
 type EmailInsert = Database['public']['Tables']['emails']['Insert']
 
-export interface SaveEmailsResult {
-  success: boolean
-  saved: number
-  skipped: number
-  errors: string[]
-}
 
 export class EmailDatabaseService {
 
   /**
-   * Save/upsert emails to the database from IMAP fetch results
-   * Handles deduplication using message_id and account_id
+   * Save emails to the database with automatic contact linking
+   * Simple, direct approach - no maps or complex parameters
    */
   async saveEmails(
     userClient: SupabaseClient<Database>, 
-    accountId: string, 
+    accountId: string,
+    userId: string,
     emails: EmailMessage[]
   ): Promise<SaveEmailsResult> {
     
     if (emails.length === 0) {
-      return {
-        success: true,
-        saved: 0,
-        skipped: 0,
-        errors: []
-      }
+      return { success: true, saved: 0, skipped: 0, errors: [] }
     }
 
     let saved = 0
@@ -39,47 +30,44 @@ export class EmailDatabaseService {
 
     for (const email of emails) {
       try {
-        // Convert IMAP email to database format
-        const dbEmail = this.convertImapEmailToDbFormat(email, accountId)
+        const dbEmail = await this.convertEmailWithContactLookup(email, accountId, userClient, userId)
         
-        // Use upsert to handle duplicates gracefully
         const { error } = await userClient
           .from('emails')
-          .upsert(dbEmail, {
-            onConflict: 'account_id,message_id',
-            ignoreDuplicates: true
-          })
+          .upsert(dbEmail, { onConflict: 'account_id,message_id' })
 
         if (error) {
-          // Check if it's a duplicate conflict (expected)
           if (error.code === '23505' || error.message.includes('duplicate')) {
             skipped++
           } else {
-            errors.push(`Email ${email.subject}: ${error.message}`)
+            errors.push(`${email.subject || 'Unknown'}: ${error.message}`)
           }
         } else {
           saved++
         }
 
       } catch (error) {
-        errors.push(`Email ${email.subject}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        errors.push(`${email.subject || 'Unknown'}: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
 
-    return {
-      success: errors.length === 0,
-      saved,
-      skipped,
-      errors
-    }
+    return { success: errors.length === 0, saved, skipped, errors }
   }
 
 
   /**
-   * Convert IMAP EmailMessage to database insert format
-   * Maps between our IMAP types and Supabase schema
+   * Convert email to database format with direct contact lookup
+   * Simple, single-responsibility method
    */
-  private convertImapEmailToDbFormat(email: EmailMessage, accountId: string): EmailInsert {
+  private async convertEmailWithContactLookup(
+    email: EmailMessage, 
+    accountId: string, 
+    userClient: SupabaseClient<Database>,
+    userId: string
+  ): Promise<EmailInsert> {
+    // Direct contact lookup - simple and clear
+    const contactId = await this.findContactIdByEmail(userClient, userId, email.from?.address)
+    
     return {
       account_id: accountId,
       imap_uid: email.uid,
@@ -99,8 +87,29 @@ export class EmailDatabaseService {
       is_deleted: false,
       folder: 'All Mail',
       gmail_thread_id: email.gmailThreadId ? parseInt(email.gmailThreadId) : null,
-      sync_status: 'synced'
+      sync_status: 'synced',
+      contact_id: contactId
     }
+  }
+
+  /**
+   * Find contact ID by email address with case-insensitive matching
+   */
+  private async findContactIdByEmail(
+    userClient: SupabaseClient<Database>,
+    userId: string, 
+    emailAddress?: string
+  ): Promise<string | null> {
+    if (!emailAddress) return null
+    
+    const { data } = await userClient
+      .from('contacts')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('email', emailAddress) // Case-insensitive match
+      .single()
+    
+    return data?.id || null
   }
 
   private generateMessageId(email: EmailMessage): string {

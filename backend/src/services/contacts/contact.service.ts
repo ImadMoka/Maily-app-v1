@@ -1,78 +1,151 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage, EmailAddress } from '../imap/imap.types'
+import type { ContactProcessingResult, ProcessedContact, ContactWithEmailData } from './contact.types'
 
+// Database types
 type ContactInsert = Database['public']['Tables']['contacts']['Insert']
 
-export interface ExtractContactsResult {
-  newContacts: number
-  totalProcessed: number
-}
-
 export class ContactService {
-  async extractAndSaveContacts(
-    userClient: SupabaseClient<Database>,
-    userId: string,
-    emails: EmailMessage[]
-  ): Promise<ExtractContactsResult> {
-    if (emails.length === 0) {
-      return { newContacts: 0, totalProcessed: 0 }
-    }
 
-    // Extract all email addresses
-    const allEmails = new Set<string>()
-    const emailToName = new Map<string, string>()
+  /**
+   * Extract contacts from emails and process them for database insertion
+   * Single-pass processing that builds contact map with latest email relationships
+   */
+  extractContactsFromEmails(
+    emails: EmailMessage[], 
+    emailIdMap: Map<string, string>
+  ): ProcessedContact[] {
+    const contactsMap = new Map<string, ProcessedContact>()
 
     for (const email of emails) {
-      this.extractEmailAddresses([email.from, ...(email.to || []), ...(email.cc || [])], allEmails, emailToName)
+      const savedEmailId = emailIdMap.get(email.messageId || '')
+      this.processContactsFromEmail(email, savedEmailId || null, contactsMap)
     }
 
-    // Filter valid emails
-    const validEmails = Array.from(allEmails).filter(email => 
-      this.isValidEmail(email) && !this.isNoReplyEmail(email)
-    )
-
-    // Save contacts with conflict handling
-    const { data } = await userClient
-      .from('contacts')
-      .upsert(
-        validEmails.map(email => ({
-          user_id: userId,
-          email,
-          name: emailToName.get(email) || ''
-        })),
-        { onConflict: 'user_id,email', ignoreDuplicates: true }
-      )
-      .select('id')
-
-    return {
-      newContacts: data?.length || 0,
-      totalProcessed: validEmails.length
-    }
+    return Array.from(contactsMap.values())
   }
 
-  private extractEmailAddresses(
-    addresses: EmailAddress[], 
-    emailSet: Set<string>, 
-    nameMap: Map<string, string>
+  /**
+   * Extract contacts from single email and update contacts map
+   * Tracks most recent email relationship for each contact
+   */
+  private processContactsFromEmail(
+    email: EmailMessage,
+    savedEmailId: string | null,
+    contactsMap: Map<string, ProcessedContact>
   ): void {
+    // Extract all addresses from this email
+    const addresses = [
+      email.from,
+      ...(email.to || []),
+      ...(email.cc || [])
+    ].filter(Boolean) as EmailAddress[]
+
     for (const addr of addresses) {
-      if (addr?.address) {
-        const email = addr.address.toLowerCase()
-        emailSet.add(email)
-        if (addr.name && !nameMap.has(email)) {
-          nameMap.set(email, addr.name.trim().substring(0, 100))
+      if (!addr.address || !this.isValidEmail(addr.address)) continue
+
+      const emailAddr = addr.address.toLowerCase()
+      
+
+      // Check if we already have this contact
+      if (!contactsMap.has(emailAddr)) {
+        // New contact
+        contactsMap.set(emailAddr, {
+          email: emailAddr,
+          name: addr.name?.trim().substring(0, 100) || '',
+          lastEmailId: savedEmailId || undefined,
+          lastEmailPreview: this.extractPreview(email.bodyPreview) || undefined,
+          lastEmailAt: email.date.toISOString()
+        })
+      } else {
+        // Existing contact - update if this email is more recent
+        const existing = contactsMap.get(emailAddr)!
+        const existingDate = existing.lastEmailAt ? new Date(existing.lastEmailAt) : new Date(0)
+        
+        if (email.date > existingDate) {
+          // This email is more recent, update the relationship
+          existing.lastEmailId = savedEmailId || existing.lastEmailId
+          existing.lastEmailPreview = this.extractPreview(email.bodyPreview) || existing.lastEmailPreview
+          existing.lastEmailAt = email.date.toISOString()
+          
+          // Update name if current contact doesn't have one and this one does
+          if (!existing.name && addr.name) {
+            existing.name = addr.name.trim().substring(0, 100)
+          }
         }
       }
     }
+  }
+
+  /**
+   * Save/upsert contacts to database with email relationships
+   * Uses upsert to handle existing contacts gracefully
+   */
+  async saveContactsWithRelationships(
+    userClient: SupabaseClient<Database>,
+    userId: string,
+    contacts: ProcessedContact[]
+  ): Promise<ContactProcessingResult> {
+    if (contacts.length === 0) {
+      return {
+        success: true,
+        saved: 0,
+        errors: []
+      }
+    }
+
+    try {
+      const contactsData: ContactInsert[] = contacts.map(contact => ({
+        user_id: userId,
+        email: contact.email,
+        name: contact.name,
+        last_email_id: contact.lastEmailId || null,
+        last_email_preview: contact.lastEmailPreview || null,
+        last_email_at: contact.lastEmailAt || null,
+        is_read: true // Default to read for MVP
+      }))
+
+      const { data, error } = await userClient
+        .from('contacts')
+        .upsert(contactsData, { onConflict: 'user_id,email', ignoreDuplicates: false })
+        .select('id')
+
+      if (error) {
+        console.error('Failed to save contacts:', error)
+        return {
+          success: false,
+          saved: 0,
+          errors: [error.message]
+        }
+      }
+
+      return {
+        success: true,
+        saved: data?.length || 0,
+        errors: []
+      }
+    } catch (error) {
+      const errorMsg = `Contact save error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      console.error(errorMsg)
+      
+      return {
+        success: false,
+        saved: 0,
+        errors: [errorMsg]
+      }
+    }
+  }
+
+
+  // Helper methods
+  private extractPreview(text: string | null | undefined): string | null {
+    if (!text) return null
+    return text.trim().substring(0, 150).replace(/\s+/g, ' ')
   }
 
   private isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255
   }
 
-  private isNoReplyEmail(email: string): boolean {
-    return ['noreply', 'no-reply', 'donotreply', 'mailer-daemon', 'postmaster']
-      .some(pattern => email.includes(pattern))
-  }
 }

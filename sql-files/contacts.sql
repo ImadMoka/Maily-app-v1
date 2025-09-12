@@ -34,6 +34,26 @@ CREATE TABLE contacts (
     email TEXT NOT NULL,
     
     -- =============================================================
+    -- EMAIL RELATIONSHIP TRACKING
+    -- =============================================================
+    
+    -- Reference to the most recent email from/to this contact
+    -- Links to emails table for quick access to latest communication
+    last_email_id UUID REFERENCES emails(id) ON DELETE SET NULL,
+    
+    -- Preview text from the most recent email
+    -- First ~150 characters for contact list previews
+    last_email_preview TEXT,
+    
+    -- Timestamp of the most recent email communication
+    -- Used for sorting contacts by recent activity
+    last_email_at TIMESTAMPTZ,
+    
+    -- Whether this contact has unread emails
+    -- Will be populated by logic to be implemented later
+    is_read BOOLEAN DEFAULT true,
+    
+    -- =============================================================
     -- AUDIT TRAIL TIMESTAMPS
     -- =============================================================
     
@@ -76,6 +96,16 @@ CREATE INDEX idx_contacts_user_email ON contacts(user_id, email);
 -- Optimizes: "SELECT * FROM contacts WHERE user_id = ? AND name ILIKE ?"
 -- Used when users search contacts by name
 CREATE INDEX idx_contacts_user_name ON contacts(user_id, name);
+
+-- Last email activity index for recent contacts sorting
+-- Optimizes: "SELECT * FROM contacts WHERE user_id = ? ORDER BY last_email_at DESC"
+-- Used when displaying contacts sorted by recent activity
+CREATE INDEX idx_contacts_user_last_email_at ON contacts(user_id, last_email_at DESC);
+
+-- Unread contacts index for filtering
+-- Optimizes: "SELECT * FROM contacts WHERE user_id = ? AND is_read = false"
+-- Used when showing only contacts with unread emails
+CREATE INDEX idx_contacts_user_unread ON contacts(user_id, is_read);
 
 -- =================================================================
 -- AUTOMATIC TIMESTAMP MANAGEMENT - Audit Trail Automation
@@ -162,6 +192,10 @@ CREATE OR REPLACE FUNCTION create_contact(
   contact_user_id UUID,
   contact_name TEXT,
   contact_email TEXT,
+  contact_last_email_id UUID,
+  contact_last_email_preview TEXT,
+  contact_last_email_at TIMESTAMP WITH TIME ZONE,
+  contact_is_read BOOLEAN,
   contact_created_at TIMESTAMP WITH TIME ZONE,
   contact_updated_at TIMESTAMP WITH TIME ZONE
 ) RETURNS VOID AS $$
@@ -169,11 +203,15 @@ BEGIN
   -- 💾 UPSERT PATTERN: Insert new or update if exists
   -- ON CONFLICT handles race conditions gracefully
   -- Updates all fields to ensure consistency across devices
-  INSERT INTO contacts (id, user_id, name, email, created_at, updated_at)
-  VALUES (contact_id, contact_user_id, contact_name, contact_email, contact_created_at, contact_updated_at)
+  INSERT INTO contacts (id, user_id, name, email, last_email_id, last_email_preview, last_email_at, is_read, created_at, updated_at)
+  VALUES (contact_id, contact_user_id, contact_name, contact_email, contact_last_email_id, contact_last_email_preview, contact_last_email_at, contact_is_read, contact_created_at, contact_updated_at)
   ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     email = EXCLUDED.email,
+    last_email_id = EXCLUDED.last_email_id,
+    last_email_preview = EXCLUDED.last_email_preview,
+    last_email_at = EXCLUDED.last_email_at,
+    is_read = EXCLUDED.is_read,
     updated_at = EXCLUDED.updated_at;
 END;
 $$ LANGUAGE plpgsql;
@@ -211,6 +249,10 @@ BEGIN
               'user_id', user_id,
               'name', name,
               'email', email,
+              'last_email_id', last_email_id,
+              'last_email_preview', last_email_preview,
+              'last_email_at', timestamp_to_epoch(last_email_at),
+              'is_read', is_read,
               'created_at', timestamp_to_epoch(created_at),
               'updated_at', timestamp_to_epoch(updated_at)
             )
@@ -229,6 +271,10 @@ BEGIN
               'user_id', user_id,
               'name', name,
               'email', email,
+              'last_email_id', last_email_id,
+              'last_email_preview', last_email_preview,
+              'last_email_at', timestamp_to_epoch(last_email_at),
+              'is_read', is_read,
               'created_at', timestamp_to_epoch(created_at),
               'updated_at', timestamp_to_epoch(updated_at)
             )
@@ -281,6 +327,10 @@ BEGIN
         requesting_user_id,  -- Force user_id for security
         new_contact->>'name',
         new_contact->>'email',
+        (new_contact->>'last_email_id')::UUID,
+        new_contact->>'last_email_preview',
+        epoch_to_timestamp((new_contact->>'last_email_at')::BIGINT),
+        (new_contact->>'is_read')::BOOLEAN,
         epoch_to_timestamp((new_contact->>'created_at')::BIGINT),
         epoch_to_timestamp((new_contact->>'updated_at')::BIGINT)
       );
@@ -296,6 +346,10 @@ BEGIN
     UPDATE contacts SET
       name = updated_contact->>'name',
       email = updated_contact->>'email',
+      last_email_id = (updated_contact->>'last_email_id')::UUID,
+      last_email_preview = updated_contact->>'last_email_preview',
+      last_email_at = epoch_to_timestamp((updated_contact->>'last_email_at')::BIGINT),
+      is_read = (updated_contact->>'is_read')::BOOLEAN,
       updated_at = epoch_to_timestamp((updated_contact->>'updated_at')::BIGINT)
     WHERE id = (updated_contact->>'id')::UUID
       AND user_id = requesting_user_id;  -- 🔒 Security: Only update own contacts

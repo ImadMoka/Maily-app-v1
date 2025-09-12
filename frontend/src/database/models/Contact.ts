@@ -11,6 +11,12 @@ export class Contact extends Model {
   @field('name') name!: string          // Contact name - maps to 'name' column
   @field('email') email!: string        // Contact email - maps to 'email' column
   
+  // 📧 EMAIL RELATIONSHIP FIELDS: Track latest email communication
+  @field('last_email_id') lastEmailId?: string        // UUID of most recent email
+  @field('last_email_preview') lastEmailPreview?: string  // Preview text from last email
+  @date('last_email_at') lastEmailAt?: Date            // When last email was sent/received
+  @field('is_read') isRead!: boolean                   // Whether contact has unread emails
+  
   // 📅 TIMESTAMP FIELDS: Automatically managed by WatermelonDB
   @readonly @date('created_at') createdAt!: Date  // When contact was created (read-only)
   @readonly @date('updated_at') updatedAt!: Date  // When contact was last modified (read-only)
