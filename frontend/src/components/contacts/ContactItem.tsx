@@ -2,8 +2,8 @@ import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { Contact } from '../database/models/Contact'
-import { markContactAsRead } from '../services/ContactReadingService'
-import { colors } from '../constants'
+import { markContactAsRead } from '../../services/ContactReadingService'
+import { colors } from '../../constants'
 
 // 🔮 REACTIVE CONTACT ITEM: Auto-updates when contact changes via WatermelonDB observables
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
