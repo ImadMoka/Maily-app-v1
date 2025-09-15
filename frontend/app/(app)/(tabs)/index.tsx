@@ -27,9 +27,10 @@ export default function Index() {
     const response = await fetch('http://localhost:3000/api/accounts', {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${session.access_token}`
+        'Authorization': `Bearer ${session?.access_token}`
       }
     })
+    
     const data = await response.json()
     setAccounts(data.accounts || [])
   }
@@ -59,7 +60,7 @@ export default function Index() {
           <View style={styles.loadingContent}>
             <Text style={styles.loadingText}>Loading...</Text>
           </View>
-        ) : accounts.length === 0 ? (
+        ) : accounts?.length === 0 ? (
           /* 📧 NO ACCOUNTS: Show add account button */
           <View style={styles.noAccountsContent}>
             <Text style={styles.noAccountsText}>No email accounts</Text>
