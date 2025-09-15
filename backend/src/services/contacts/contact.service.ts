@@ -9,18 +9,29 @@ type ContactInsert = Database['public']['Tables']['contacts']['Insert']
 export class ContactService {
 
   /**
-   * Extract contacts from emails and process them for database insertion
-   * Single-pass processing that builds contact map with latest email relationships
+   * Extract contacts from emails and calculate read status
    */
   extractContactsFromEmails(
     emails: EmailMessage[], 
     emailIdMap: Map<string, string>
   ): ProcessedContact[] {
     const contactsMap = new Map<string, ProcessedContact>()
+    const contactsWithUnread = new Set<string>() // Track contacts with unread emails
 
     for (const email of emails) {
       const savedEmailId = emailIdMap.get(email.messageId || '')
+      
+      // Track which contacts have unread emails
+      if (!email.isRead && email.from?.address) {
+        contactsWithUnread.add(email.from.address.toLowerCase())
+      }
+      
       this.processContactsFromEmail(email, savedEmailId || null, contactsMap)
+    }
+
+    // Set read status: contact is unread if they have any unread emails
+    for (const contact of contactsMap.values()) {
+      contact.isRead = !contactsWithUnread.has(contact.email)
     }
 
     return Array.from(contactsMap.values())
@@ -103,7 +114,7 @@ export class ContactService {
         last_email_id: contact.lastEmailId || null,
         last_email_preview: contact.lastEmailPreview || null,
         last_email_at: contact.lastEmailAt || null,
-        is_read: true // Default to read for MVP
+        is_read: contact.isRead ?? true
       }))
 
       const { data, error } = await userClient
@@ -147,5 +158,6 @@ export class ContactService {
   private isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255
   }
+
 
 }

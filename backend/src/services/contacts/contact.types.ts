@@ -10,6 +10,7 @@ export interface ProcessedContact {
   lastEmailId?: string
   lastEmailPreview?: string
   lastEmailAt?: string
+  isRead?: boolean
 }
 
 export interface ContactWithEmailData {

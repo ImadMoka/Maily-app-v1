@@ -192,6 +192,7 @@ export class ImapService {
         bodies: '',
         struct: true,
         envelope: true,
+        flags: true,
         extensions: ['X-GM-THRID']
       })
 
@@ -202,12 +203,14 @@ export class ImapService {
         let uid = 0
         let envelope: any = null
         let structure: any = null
+        let flags: string[] = []
         let gmailThreadId: string | null = null
 
         msg.on('attributes', (attrs: any) => {
           uid = attrs.uid
           envelope = attrs.envelope
           structure = attrs.struct
+          flags = attrs.flags || []
           // Extract Gmail thread ID from X-GM-THRID extension
           gmailThreadId = attrs['x-gm-thrid'] ? String(attrs['x-gm-thrid']) : null
         })
@@ -245,7 +248,7 @@ export class ImapService {
               date: envelope.date || new Date(),
               hasAttachments: this.hasAttachments(structure),
               bodyPreview: '',
-              isRead: false, // Default to unread
+              isRead: flags.includes('\\Seen'), // Actual read status from IMAP
               size: this.calculateMessageSize(structure),
               gmailThreadId: gmailThreadId
             })
