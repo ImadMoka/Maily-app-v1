@@ -4,8 +4,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
-import { Contact } from '../database/models/Contact'
-import { colors } from '../constants'
+import { Contact } from '../../database/models/Contact' // Updated path since we're now in contacts/ subfolder
+import { colors } from '../../constants' // Updated path since we're now in contacts/ subfolder
 
 interface ContactFormProps {
   contact?: Contact | null  // If provided, we're editing; if null, we're creating

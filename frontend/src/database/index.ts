@@ -1,5 +1,5 @@
 import { Database } from '@nozbe/watermelondb'
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite'
+import LokiJSAdapter from '@nozbe/watermelondb/adapters/lokijs'
 import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId'
 
 import { schema } from './schema'
@@ -15,10 +15,11 @@ export function generateUUID(): string {
   })
 }
 
-// 🚀 DATABASE INITIALIZATION: Creates the local SQLite database instance
-const adapter = new SQLiteAdapter({ 
+// 🚀 DATABASE INITIALIZATION: Creates the local LokiJS database instance (Expo compatible)
+const adapter = new LokiJSAdapter({ 
   schema,                    // The schema defined above
-  dbName: 'MailyContactsDB'  // SQLite database file name on device
+  useWebWorker: false,       // Disable web worker for React Native
+  useIncrementalIndexedDB: true, // Better performance
 })
 
 // 🎯 CONFIGURE UUID GENERATION: Set up WatermelonDB to use our UUID generator
