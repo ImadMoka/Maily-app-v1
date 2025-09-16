@@ -3,7 +3,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb'
 // 🏗️ DATABASE SCHEMA: Defines the structure of our SQLite database
 // This must match the structure of your remote PostgreSQL table
 export const schema = appSchema({
-  version: 2,  // Schema version - increment when making changes
+  version: 3,  // Schema version - increment when making changes
   
   tables: [
     tableSchema({
@@ -26,6 +26,21 @@ export const schema = appSchema({
         // 💡 'id' column is automatically created by WatermelonDB as UUID format
         // 💡 Timestamps stored as numbers (Unix time) for efficiency
         // 💡 New email relationship fields track latest communication
+      ],
+    }),
+    
+    tableSchema({
+      name: 'emails',
+      columns: [
+        { name: 'message_id', type: 'string' },
+        { name: 'contact_id', type: 'string', isOptional: true },
+        { name: 'subject', type: 'string', isOptional: true },
+        { name: 'from_address', type: 'string' },
+        { name: 'from_name', type: 'string', isOptional: true },
+        { name: 'date_sent', type: 'number' },
+        { name: 'is_read', type: 'boolean' },
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
   ],
