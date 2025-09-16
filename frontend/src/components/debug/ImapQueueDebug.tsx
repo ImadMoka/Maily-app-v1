@@ -1,9 +1,10 @@
 import React from 'react'
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Alert } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { database } from '../../database'
 import ImapSyncQueue from '../../database/models/ImapSyncQueue'
 import { Q } from '@nozbe/watermelondb'
+import { imapSyncService } from '../../services/ImapSyncService'
 
 interface QueueDebugProps {
   queueItems: ImapSyncQueue[]
@@ -11,6 +12,7 @@ interface QueueDebugProps {
 
 const ImapQueueDebugComponent: React.FC<QueueDebugProps> = ({ queueItems }) => {
   const [refreshing, setRefreshing] = React.useState(false)
+  const [processing, setProcessing] = React.useState(false)
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true)
@@ -27,25 +29,54 @@ const ImapQueueDebugComponent: React.FC<QueueDebugProps> = ({ queueItems }) => {
   }
 
   const clearQueue = async () => {
-    await database.write(async () => {
-      const allItems = await database.get<ImapSyncQueue>('imap_sync_queue').query().fetch()
-      for (const item of allItems) {
-        await item.markAsDeleted()
-      }
-    })
+    await imapSyncService.clearQueue()
+  }
+
+  const processQueue = async () => {
+    if (processing) return
+
+    setProcessing(true)
+    try {
+      const result = await imapSyncService.processQueue()
+
+      Alert.alert(
+        'Processing Complete',
+        `Processed: ${result.processed}\nSucceeded: ${result.succeeded}\nFailed: ${result.failed}`,
+        [{ text: 'OK' }]
+      )
+    } catch (error) {
+      Alert.alert(
+        '❌ Processing Error',
+        error instanceof Error ? error.message : 'Unknown error',
+        [{ text: 'OK' }]
+      )
+    } finally {
+      setProcessing(false)
+    }
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>📮 IMAP Sync Queue</Text>
-        <TouchableOpacity onPress={clearQueue} style={styles.clearButton}>
-          <Text style={styles.clearButtonText}>Clear All</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>IMAP Sync Queue</Text>
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            onPress={processQueue}
+            style={[styles.processButton, processing && styles.disabledButton]}
+            disabled={processing}
+          >
+            <Text style={styles.processButtonText}>
+              {processing ? 'Processing...' : 'Process Queue'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={clearQueue} style={styles.clearButton}>
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={styles.count}>
-        Total items: {queueItems.length}
+        Total items: {queueItems.length} {processing && '(Processing...)'}
       </Text>
 
       <ScrollView
@@ -115,6 +146,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  processButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  processButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   clearButton: {
     backgroundColor: '#FF6B6B',
     paddingHorizontal: 12,
@@ -125,6 +171,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#CCCCCC',
   },
   count: {
     fontSize: 14,

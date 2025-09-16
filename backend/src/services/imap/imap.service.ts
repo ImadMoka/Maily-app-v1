@@ -147,7 +147,7 @@ export class ImapService {
   }
 
   private openBestFolder(imap: any, callback: (err: any, box: any) => void) {
-    const folders = ['[Gmail]/All Mail', 'INBOX', 'All Mail', 'Alle Nachrichten']
+    const folders = ['INBOX', '[Gmail]/All Mail']
     
     const tryFolder = (index: number) => {
       if (index >= folders.length) {
@@ -401,14 +401,11 @@ export class ImapService {
     shouldCloseConnection: boolean
   ): Promise<{ success: boolean, error?: string }> {
     return new Promise((resolve) => {
-      // Try common folder name variations for "All Mail"
+      // Try the specified folder first, then fallback to INBOX
       const folderVariations = [
         params.folderName,
-        '[Gmail]/All Mail',
-        '[Gmail]/Alle Nachrichten',
-        'All Mail',
-        'Alle Nachrichten',
-        'INBOX' // Fallback to INBOX if others fail
+        'INBOX',
+        '[Gmail]/All Mail'
       ]
 
       let folderOpened = false

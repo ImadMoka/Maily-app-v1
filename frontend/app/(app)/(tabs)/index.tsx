@@ -7,9 +7,10 @@ import { useSession } from '../../../src/context/SessionContext';
 import ContactsList from '../../../src/components/contacts/ContactsList'; // Updated path for reorganized components
 import { startAutoSync } from '../../../src/database/sync';
 import { ImapQueueDebug } from '../../../src/components/debug/ImapQueueDebug';
+import { imapSyncService } from '../../../src/services/ImapSyncService';
 
 export default function Index() {
-  const [accounts, setAccounts] = useState(null)
+  const [accounts, setAccounts] = useState<any[] | null>(null)
   const [showDebug, setShowDebug] = useState(false)
   const { session } = useSession()
 
@@ -20,10 +21,16 @@ export default function Index() {
   // 🔄 START BACKGROUND SYNC: Begin syncing contacts with cloud database
   useEffect(() => {
     const cleanup = startAutoSync()  // Returns cleanup function
-    
+
     // 🧹 CLEANUP: Stop sync when component unmounts
     return cleanup  // This stops the sync interval and real-time subscription
   }, [])  // Empty dependency array = run once on mount
+
+  // Start IMAP background sync
+  useEffect(() => {
+    imapSyncService.startBackgroundSync()
+    return () => imapSyncService.stopBackgroundSync()
+  }, [])
 
   async function fetchAccounts() {
     const response = await fetch('http://localhost:3000/api/accounts', {

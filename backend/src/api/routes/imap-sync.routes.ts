@@ -50,7 +50,7 @@ export class ImapSyncRoutes {
         tls: true
       }, {
         uid: imapUid,
-        folderName: folderName || 'All Mail' // Default to "All Mail" or "Alle Nachrichten"
+        folderName: folderName || 'INBOX' // Default to INBOX
       }, {
         userId: user.id,
         accountId: account.id
