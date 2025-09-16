@@ -320,4 +320,144 @@ export class ImapService {
     if (msg.includes('refused')) return 'Connection refused - check server and port'
     return error.message
   }
+
+  /**
+   * Mark an email as read by setting the \Seen flag
+   */
+  async markAsRead(
+    config: ImapConnectionConfig,
+    params: { uid: number, folderName: string },
+    userContext?: { userId: string, accountId: string }
+  ): Promise<{ success: boolean, error?: string }> {
+
+    // Try to use cached connection first
+    if (userContext?.userId && userContext?.accountId) {
+      const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
+
+      if (cachedConnection) {
+        console.log(`♻️ Using cached IMAP connection for marking UID ${params.uid} as read`)
+        return this.doMarkAsRead(cachedConnection, params, true)
+      }
+    }
+
+    console.log(`🆕 Creating new IMAP connection to mark UID ${params.uid} as read`)
+
+    // Create new connection if no cache
+    return new Promise((resolve) => {
+      const imap = new Imap({
+        user: config.username,
+        password: config.password,
+        host: config.host,
+        port: config.port,
+        tls: config.tls,
+        authTimeout: 10000,
+        connTimeout: 10000
+      })
+
+      const timeout = setTimeout(() => {
+        imap.destroy()
+        resolve({
+          success: false,
+          error: 'Connection timeout after 10 seconds'
+        })
+      }, 10000)
+
+      imap.once('ready', () => {
+        clearTimeout(timeout)
+
+        // Cache the connection for future use
+        if (userContext?.userId && userContext?.accountId) {
+          console.log(`💾 Caching IMAP connection after mark-as-read`)
+          imapConnectionCache.set(userContext.userId, userContext.accountId, imap)
+        }
+
+        // Perform the mark as read operation
+        this.doMarkAsRead(imap, params, !userContext).then(resolve)
+      })
+
+      imap.once('error', (error: Error) => {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: this.formatImapError(error)
+        })
+      })
+
+      try {
+        imap.connect()
+      } catch (error) {
+        clearTimeout(timeout)
+        resolve({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown connection error'
+        })
+      }
+    })
+  }
+
+  private async doMarkAsRead(
+    imap: any,
+    params: { uid: number, folderName: string },
+    shouldCloseConnection: boolean
+  ): Promise<{ success: boolean, error?: string }> {
+    return new Promise((resolve) => {
+      // Try common folder name variations for "All Mail"
+      const folderVariations = [
+        params.folderName,
+        '[Gmail]/All Mail',
+        '[Gmail]/Alle Nachrichten',
+        'All Mail',
+        'Alle Nachrichten',
+        'INBOX' // Fallback to INBOX if others fail
+      ]
+
+      let folderOpened = false
+      let currentFolderIndex = 0
+
+      const tryOpenFolder = () => {
+        if (currentFolderIndex >= folderVariations.length) {
+          if (shouldCloseConnection) imap.end()
+          resolve({
+            success: false,
+            error: `Could not open folder: ${params.folderName}`
+          })
+          return
+        }
+
+        const currentFolder = folderVariations[currentFolderIndex]
+
+        imap.openBox(currentFolder, false, (err: any, box: any) => {
+          if (err) {
+            console.log(`⚠️ Failed to open folder "${currentFolder}": ${err.message}`)
+            currentFolderIndex++
+            tryOpenFolder() // Try next folder variation
+            return
+          }
+
+          console.log(`📁 Successfully opened folder: ${currentFolder}`)
+          folderOpened = true
+
+          // Add the \Seen flag to the message
+          imap.addFlags(params.uid + ':' + params.uid, ['\\Seen'], (err: any) => {
+            if (shouldCloseConnection) imap.end()
+
+            if (err) {
+              console.error(`❌ Failed to mark UID ${params.uid} as read:`, err)
+              resolve({
+                success: false,
+                error: `Failed to set \\Seen flag: ${err.message}`
+              })
+            } else {
+              console.log(`✅ Successfully marked UID ${params.uid} as read`)
+              resolve({
+                success: true
+              })
+            }
+          })
+        })
+      }
+
+      tryOpenFolder()
+    })
+  }
 }

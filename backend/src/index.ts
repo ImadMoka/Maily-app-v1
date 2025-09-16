@@ -1,6 +1,8 @@
 import { AccountRoutes } from './api/routes/account.routes'
+import { ImapSyncRoutes } from './api/routes/imap-sync.routes'
 
 const accountRoutes = new AccountRoutes()
+const imapSyncRoutes = new ImapSyncRoutes()
 
 Bun.serve({
   async fetch(req) {
@@ -12,6 +14,11 @@ Bun.serve({
 
     if (url.pathname === '/api/accounts' && req.method === 'GET') {
       return await accountRoutes.handleGetAccounts(req)
+    }
+
+    // IMAP sync endpoint - mark email as read
+    if (url.pathname === '/api/imap/mark-read' && req.method === 'POST') {
+      return await imapSyncRoutes.handleMarkAsRead(req)
     }
 
     return Response.json({ error: 'Not found' }, { status: 404 });
