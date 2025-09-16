@@ -296,33 +296,20 @@ BEGIN
           (SELECT jsonb_agg(
             jsonb_build_object(
               'id', e.id,
-              'account_id', e.account_id,
               'contact_id', e.contact_id,
               'message_id', e.message_id,
-              'imap_uid', e.imap_uid,
               'subject', e.subject,
               'from_address', e.from_address,
               'from_name', e.from_name,
-              'to_addresses', COALESCE(e.to_addresses::text, '[]'),
-              'cc_addresses', COALESCE(e.cc_addresses::text, '[]'),
               'date_sent', timestamp_to_epoch(e.date_sent),
-              'date_received', timestamp_to_epoch(e.date_received),
-              'preview_text', e.preview_text,
-              'size_bytes', e.size_bytes,
-              'has_attachments', e.has_attachments,
               'is_read', e.is_read,
-              'is_starred', e.is_starred,
-              'is_deleted', e.is_deleted,
-              'folder', e.folder,
               'gmail_thread_id', e.gmail_thread_id,
-              'sync_status', e.sync_status,
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
           )
           FROM emails e
-          JOIN email_accounts ea ON e.account_id = ea.id
-          WHERE ea.user_id = requesting_user_id   -- 🔒 RLS: Only user's emails via accounts
+          WHERE TRUE   -- Note: Simplified schema without account ownership
             AND e.created_at > cutoff_time),      -- 🔍 Only new emails
           '[]'::jsonb
         ),
@@ -332,33 +319,20 @@ BEGIN
           (SELECT jsonb_agg(
             jsonb_build_object(
               'id', e.id,
-              'account_id', e.account_id,
               'contact_id', e.contact_id,
               'message_id', e.message_id,
-              'imap_uid', e.imap_uid,
               'subject', e.subject,
               'from_address', e.from_address,
               'from_name', e.from_name,
-              'to_addresses', COALESCE(e.to_addresses::text, '[]'),
-              'cc_addresses', COALESCE(e.cc_addresses::text, '[]'),
               'date_sent', timestamp_to_epoch(e.date_sent),
-              'date_received', timestamp_to_epoch(e.date_received),
-              'preview_text', e.preview_text,
-              'size_bytes', e.size_bytes,
-              'has_attachments', e.has_attachments,
               'is_read', e.is_read,
-              'is_starred', e.is_starred,
-              'is_deleted', e.is_deleted,
-              'folder', e.folder,
               'gmail_thread_id', e.gmail_thread_id,
-              'sync_status', e.sync_status,
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
           )
           FROM emails e
-          JOIN email_accounts ea ON e.account_id = ea.id
-          WHERE ea.user_id = requesting_user_id   -- 🔒 RLS: Only user's emails via accounts
+          WHERE TRUE   -- Note: Simplified schema without account ownership
             AND e.updated_at > cutoff_time        -- 📅 Modified since last sync
             AND e.created_at <= cutoff_time),     -- 🎯 But existed before last sync
           '[]'::jsonb
@@ -452,64 +426,33 @@ BEGIN
   FOR new_email IN 
     SELECT jsonb_array_elements(changes->'emails'->'created')
   LOOP
-    -- 💾 UPSERT with security validation via account ownership
-    -- Verify the account belongs to the requesting user for security
-    IF EXISTS (
-      SELECT 1 FROM email_accounts 
-      WHERE id = (new_email->>'account_id')::UUID 
-        AND user_id = requesting_user_id
-    ) THEN
-      INSERT INTO emails (
-        id, account_id, contact_id, message_id, imap_uid, subject, from_address, from_name,
-        to_addresses, cc_addresses, date_sent, date_received, preview_text, size_bytes,
-        has_attachments, is_read, is_starred, is_deleted, folder, gmail_thread_id, sync_status,
-        created_at, updated_at
-      )
-      VALUES (
-        (new_email->>'id')::UUID,
-        (new_email->>'account_id')::UUID,
-        NULLIF(new_email->>'contact_id', '')::UUID,
-        new_email->>'message_id',
-        (new_email->>'imap_uid')::INTEGER,
-        new_email->>'subject',
-        new_email->>'from_address',
-        new_email->>'from_name',
-        COALESCE((new_email->>'to_addresses')::JSONB, '[]'::JSONB),
-        COALESCE((new_email->>'cc_addresses')::JSONB, '[]'::JSONB),
-        epoch_to_timestamp((new_email->>'date_sent')::BIGINT),
-        epoch_to_timestamp((new_email->>'date_received')::BIGINT),
-        new_email->>'preview_text',
-        (new_email->>'size_bytes')::INTEGER,
-        (new_email->>'has_attachments')::BOOLEAN,
-        (new_email->>'is_read')::BOOLEAN,
-        (new_email->>'is_starred')::BOOLEAN,
-        (new_email->>'is_deleted')::BOOLEAN,
-        new_email->>'folder',
-        NULLIF(new_email->>'gmail_thread_id', ''),
-        new_email->>'sync_status',
-        epoch_to_timestamp((new_email->>'created_at')::BIGINT),
-        epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        contact_id = EXCLUDED.contact_id,
-        subject = EXCLUDED.subject,
-        from_address = EXCLUDED.from_address,
-        from_name = EXCLUDED.from_name,
-        to_addresses = EXCLUDED.to_addresses,
-        cc_addresses = EXCLUDED.cc_addresses,
-        date_sent = EXCLUDED.date_sent,
-        date_received = EXCLUDED.date_received,
-        preview_text = EXCLUDED.preview_text,
-        size_bytes = EXCLUDED.size_bytes,
-        has_attachments = EXCLUDED.has_attachments,
-        is_read = EXCLUDED.is_read,
-        is_starred = EXCLUDED.is_starred,
-        is_deleted = EXCLUDED.is_deleted,
-        folder = EXCLUDED.folder,
-        gmail_thread_id = EXCLUDED.gmail_thread_id,
-        sync_status = EXCLUDED.sync_status,
-        updated_at = EXCLUDED.updated_at;
-    END IF;
+    -- 💾 UPSERT for simplified schema without account ownership
+    INSERT INTO emails (
+      id, contact_id, message_id, subject, from_address, from_name,
+      date_sent, is_read, gmail_thread_id, created_at, updated_at
+    )
+    VALUES (
+      (new_email->>'id')::UUID,
+      NULLIF(new_email->>'contact_id', '')::UUID,
+      new_email->>'message_id',
+      new_email->>'subject',
+      new_email->>'from_address',
+      new_email->>'from_name',
+      epoch_to_timestamp((new_email->>'date_sent')::BIGINT),
+      (new_email->>'is_read')::BOOLEAN,
+      NULLIF(new_email->>'gmail_thread_id', '')::BIGINT,
+      epoch_to_timestamp((new_email->>'created_at')::BIGINT),
+      epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      contact_id = EXCLUDED.contact_id,
+      subject = EXCLUDED.subject,
+      from_address = EXCLUDED.from_address,
+      from_name = EXCLUDED.from_name,
+      date_sent = EXCLUDED.date_sent,
+      is_read = EXCLUDED.is_read,
+      gmail_thread_id = EXCLUDED.gmail_thread_id,
+      updated_at = EXCLUDED.updated_at;
   END LOOP;
 
   -- 📝 SECTION E: UPDATE EMAILS
@@ -523,25 +466,11 @@ BEGIN
       subject = updated_email->>'subject',
       from_address = updated_email->>'from_address',
       from_name = updated_email->>'from_name',
-      to_addresses = COALESCE((updated_email->>'to_addresses')::JSONB, '[]'::JSONB),
-      cc_addresses = COALESCE((updated_email->>'cc_addresses')::JSONB, '[]'::JSONB),
       date_sent = epoch_to_timestamp((updated_email->>'date_sent')::BIGINT),
-      date_received = epoch_to_timestamp((updated_email->>'date_received')::BIGINT),
-      preview_text = updated_email->>'preview_text',
-      size_bytes = (updated_email->>'size_bytes')::INTEGER,
-      has_attachments = (updated_email->>'has_attachments')::BOOLEAN,
       is_read = (updated_email->>'is_read')::BOOLEAN,
-      is_starred = (updated_email->>'is_starred')::BOOLEAN,
-      is_deleted = (updated_email->>'is_deleted')::BOOLEAN,
-      folder = updated_email->>'folder',
-      gmail_thread_id = NULLIF(updated_email->>'gmail_thread_id', ''),
-      sync_status = updated_email->>'sync_status',
+      gmail_thread_id = NULLIF(updated_email->>'gmail_thread_id', '')::BIGINT,
       updated_at = epoch_to_timestamp((updated_email->>'updated_at')::BIGINT)
-    WHERE id = (updated_email->>'id')::UUID
-      AND account_id IN (
-        SELECT id FROM email_accounts 
-        WHERE user_id = requesting_user_id
-      );  -- 🔒 Security: Only update emails from own accounts
+    WHERE id = (updated_email->>'id')::UUID;  -- Note: Removed account ownership check since we don't have account_id in simplified schema
   END LOOP;
 
   -- 🗑️ SECTION F: DELETE EMAILS
@@ -550,11 +479,7 @@ BEGIN
     SELECT jsonb_array_elements_text(changes->'emails'->'deleted')::UUID AS deleted_id
   )
   DELETE FROM emails 
-  WHERE emails.id IN (SELECT deleted_id FROM deleted_emails)
-    AND emails.account_id IN (
-      SELECT id FROM email_accounts 
-      WHERE user_id = requesting_user_id
-    );  -- 🔒 Security: Only delete emails from own accounts
+  WHERE emails.id IN (SELECT deleted_id FROM deleted_emails);  -- Note: Removed account ownership check for simplified schema
     
   -- Note: Using hard DELETE for MVP simplicity
   -- Future versions could implement soft deletes with tombstone records

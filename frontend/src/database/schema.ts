@@ -3,7 +3,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb'
 // 🏗️ DATABASE SCHEMA: Defines the structure of our SQLite database
 // This must match the structure of your remote PostgreSQL table
 export const schema = appSchema({
-  version: 3,  // Schema version - increment when making changes
+  version: 4,  // Schema version - increment when making changes
   
   tables: [
     tableSchema({
@@ -39,6 +39,7 @@ export const schema = appSchema({
         { name: 'from_name', type: 'string', isOptional: true },
         { name: 'date_sent', type: 'number' },
         { name: 'is_read', type: 'boolean' },
+        { name: 'gmail_thread_id', type: 'number', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],

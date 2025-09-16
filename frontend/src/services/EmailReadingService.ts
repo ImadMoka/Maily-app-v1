@@ -1,5 +1,6 @@
 import { database } from '../database'
 import { Email } from '../database/models/Email'
+import { syncNow } from '../database/sync'
 
 /**
  * 📧 EMAIL READING SERVICE
@@ -13,4 +14,7 @@ export const markEmailAsRead = async (email: Email) => {
       email.isRead = true
     })
   })
+  
+  // Sync changes to Supabase
+  setTimeout(() => syncNow(), 100)
 }
