@@ -1,5 +1,6 @@
-import { Model } from '@nozbe/watermelondb'
-import { field, date, readonly } from '@nozbe/watermelondb/decorators'
+import { Model, Query } from '@nozbe/watermelondb'
+import { field, date, readonly, children } from '@nozbe/watermelondb/decorators'
+import { type Email } from './Email'
 
 // 📝 CONTACT MODEL: Defines the structure of our Contact items
 // This model maps directly to both local SQLite and remote PostgreSQL tables
@@ -21,6 +22,10 @@ export class Contact extends Model {
   @readonly @date('created_at') createdAt!: Date  // When contact was created (read-only)
   @readonly @date('updated_at') updatedAt!: Date  // When contact was last modified (read-only)
   
+  // 📧 RELATIONSHIPS: Link to related emails
+  @children('emails') emails!: Query<Email>  // All emails from/to this contact
+  
   // 💡 Why @readonly? These timestamps are automatically managed during create/update
   // 💡 Why @date? Converts between JavaScript Date objects and Unix timestamps in SQLite
+  // 💡 Why @children? Creates hasMany relationship - contact can have many emails
 }

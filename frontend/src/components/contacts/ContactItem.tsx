@@ -1,62 +1,62 @@
 import React from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
-import { Contact } from '../database/models/Contact'
+import { router } from 'expo-router'
+import { Contact } from '../../database/models/Contact'
 import { markContactAsRead } from '../../services/ContactReadingService'
 import { colors } from '../../constants'
 
-// 🔮 REACTIVE CONTACT ITEM: Auto-updates when contact changes via WatermelonDB observables
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
-  contact: contact.observe(), // 🔔 Observe individual contact for updates
-}))(({ contact, onEdit, onDelete }: { 
-  contact: Contact, 
-  onEdit: (contact: Contact) => void, 
+  contact: contact.observe(),
+}))(({ contact, onDelete }: { 
+  contact: Contact
   onDelete: (contact: Contact) => void 
 }) => {
-
-  // 📖 HANDLE CONTACT TAP: Mark as read if unread, edit if already read
-  const handleContactTap = async () => {
+  const handleTap = async () => {
     if (!contact.isRead) {
       await markContactAsRead(contact)
-    } else {
-      onEdit(contact)
     }
+    
+    router.push({
+      pathname: '/(app)/contact-emails',
+      params: {
+        contactId: contact.id,
+        contactName: contact.name
+      }
+    })
   }
 
-  // Get initials for avatar display
   const getInitials = () => {
-    if (contact.name.trim()) {
-      const nameParts = contact.name.trim().split(' ')
-      if (nameParts.length >= 2) {
-        return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-      }
-      return contact.name[0].toUpperCase()
+    const name = contact.name.trim()
+    if (name) {
+      const parts = name.split(' ')
+      return parts.length > 1 
+        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+        : name[0].toUpperCase()
     }
     return contact.email[0].toUpperCase()
   }
 
   return (
-    <View style={[styles.contact, contact.isRead && { opacity: 0.6 }]}>
-      {/* 👤 AVATAR: Shows initials */}
+    <TouchableOpacity style={styles.contact} onPress={handleTap}>
       <View style={styles.avatar}>
         <Text style={styles.avatarText}>{getInitials()}</Text>
       </View>
 
-      {/* 📝 CONTACT INFO: Tap to read or edit */}
-      <TouchableOpacity style={styles.contactContent} onPress={handleContactTap}>
+      <View style={styles.contactContent}>
         <View style={styles.nameRow}>
-          <Text style={styles.name}>{contact.name}</Text>
-          {/* 🟢 UNREAD INDICATOR: Green dot for unread contacts */}
+          <Text style={[styles.name, !contact.isRead && styles.unread]}>
+            {contact.name}
+          </Text>
           {!contact.isRead && <View style={styles.unreadDot} />}
         </View>
         <Text style={styles.email}>{contact.email}</Text>
-      </TouchableOpacity>
+      </View>
 
-      {/* 🗑️ DELETE BUTTON */}
       <TouchableOpacity onPress={() => onDelete(contact)}>
         <Text style={styles.delete}>✕</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   )
 })
 
@@ -118,6 +118,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#ff4444',
     padding: 8,
+    fontWeight: 'bold',
+  },
+  unread: {
     fontWeight: 'bold',
   },
 })
