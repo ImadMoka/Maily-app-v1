@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { router } from 'expo-router'
 import { Contact } from '../../database/models/Contact'
-import { markContactAsRead } from '../../services/ContactReadingService'
 import { colors } from '../../constants'
 
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
@@ -13,10 +12,6 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
   onDelete: (contact: Contact) => void 
 }) => {
   const handleTap = async () => {
-    if (!contact.isRead) {
-      await markContactAsRead(contact)
-    }
-    
     router.push({
       pathname: '/(app)/contact-emails',
       params: {

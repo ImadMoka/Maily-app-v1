@@ -56,7 +56,7 @@ async function sync() {
           if (error) throw error
           
         } catch (error) {
-          console.log('Push failed, queued locally:', error)
+          console.log('Sync failed, queued locally:', error)
         }
       },
     })

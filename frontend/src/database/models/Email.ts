@@ -15,6 +15,7 @@ export class Email extends Model {
   @field('from_name') fromName?: string
   @date('date_sent') dateSent!: Date
   @field('is_read') isRead!: boolean
+  @field('gmail_thread_id') gmailThreadId?: number
   
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date
