@@ -5,7 +5,45 @@ import { Q } from '@nozbe/watermelondb'
 import { database } from '../../database'
 import { Contact } from '../../database/models/Contact'
 import { Email } from '../../database/models/Email'
+import { markEmailAsRead } from '../../services/EmailReadingService'
 import { colors } from '../../constants'
+
+// Observable email item component that watches individual email changes
+const EmailItem = withObservables(['email'], ({ email }) => ({
+  email: email.observe(),
+}))(({ email }: { email: Email }) => {
+  const handleEmailTap = async () => {
+    if (!email.isRead) {
+      console.log('📧 Marking email as read:', email.subject)
+      await markEmailAsRead(email)
+      console.log('✅ Email marked as read, new status:', email.isRead)
+    } else {
+      console.log('📖 Email already read:', email.subject)
+    }
+    // Future: Could navigate to email detail view here
+  }
+
+  const sender = email.fromName || email.fromAddress
+  const date = email.dateSent.toLocaleDateString()
+  
+  return (
+    <TouchableOpacity 
+      style={styles.emailItem} 
+      onPress={handleEmailTap}
+    >
+      <View style={styles.emailHeader}>
+        <Text style={[styles.sender, !email.isRead && styles.unread]}>
+          {sender}
+        </Text>
+        <Text style={styles.date}>{date}</Text>
+        {!email.isRead && <View style={styles.unreadDot} />}
+      </View>
+      <Text style={[styles.subject, !email.isRead && styles.unread]} numberOfLines={1}>
+        {email.subject || 'No Subject'}
+      </Text>
+    </TouchableOpacity>
+  )
+})
 
 const ContactEmailsList = withObservables(['contactId'], ({ contactId }) => ({
   contact: database.collections.get<Contact>('contacts').findAndObserve(contactId),
@@ -34,22 +72,7 @@ const ContactEmailsList = withObservables(['contactId'], ({ contactId }) => ({
   }
 
   const renderEmail = ({ item: email }: { item: Email }) => {
-    const sender = email.fromName || email.fromAddress
-    const date = email.dateSent.toLocaleDateString()
-    
-    return (
-      <TouchableOpacity style={styles.emailItem}>
-        <View style={styles.emailHeader}>
-          <Text style={[styles.sender, !email.isRead && styles.unread]}>
-            {sender}
-          </Text>
-          <Text style={styles.date}>{date}</Text>
-        </View>
-        <Text style={[styles.subject, !email.isRead && styles.unread]} numberOfLines={1}>
-          {email.subject || 'No Subject'}
-        </Text>
-      </TouchableOpacity>
-    )
+    return <EmailItem email={email} />
   }
 
   return (
@@ -105,6 +128,13 @@ const styles = StyleSheet.create({
   },
   unread: {
     fontWeight: 'bold',
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#28a745',
+    marginLeft: 8,
   },
 })
 
