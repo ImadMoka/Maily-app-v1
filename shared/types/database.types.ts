@@ -224,13 +224,6 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "emails_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "threads"
-            referencedColumns: ["id"]
-          },
         ]
       }
       threads: {
@@ -241,7 +234,7 @@ export type Database = {
           first_email_date: string
           gmail_thread_id: number | null
           id: string
-          is_read: boolean | null
+          is_read: boolean
           last_email_date: string
           last_email_from: string | null
           last_email_preview: string | null
@@ -256,7 +249,7 @@ export type Database = {
           first_email_date: string
           gmail_thread_id?: number | null
           id?: string
-          is_read?: boolean | null
+          is_read?: boolean
           last_email_date: string
           last_email_from?: string | null
           last_email_preview?: string | null
@@ -271,7 +264,7 @@ export type Database = {
           first_email_date?: string
           gmail_thread_id?: number | null
           id?: string
-          is_read?: boolean | null
+          is_read?: boolean
           last_email_date?: string
           last_email_from?: string | null
           last_email_preview?: string | null

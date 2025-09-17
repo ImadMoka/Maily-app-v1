@@ -353,7 +353,8 @@ BEGIN
       id, contact_id, gmail_thread_id, subject,
       last_email_preview, last_email_from,
       email_count, unread_count,
-      first_email_date, last_email_date, is_read,
+      first_email_date, last_email_date,
+      is_read,
       created_at, updated_at
     )
     VALUES (

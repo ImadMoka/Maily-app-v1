@@ -27,8 +27,8 @@ CREATE TABLE threads (
     first_email_date TIMESTAMPTZ NOT NULL,
     last_email_date TIMESTAMPTZ NOT NULL,
 
-    -- Quick read status check
-    is_read BOOLEAN GENERATED ALWAYS AS (unread_count = 0) STORED,
+    -- Regular boolean column now (not generated)
+    is_read BOOLEAN DEFAULT true NOT NULL,
 
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -39,7 +39,7 @@ CREATE TABLE threads (
 );
 
 -- =================================================================
--- INDEXES FOR FAST QUERIES
+-- RECREATE INDEXES
 -- =================================================================
 
 -- Main query: Get all threads for a contact sorted by date
@@ -52,14 +52,20 @@ CREATE INDEX idx_threads_contact_unread ON threads(contact_id) WHERE unread_coun
 CREATE INDEX idx_threads_gmail_id ON threads(gmail_thread_id) WHERE gmail_thread_id IS NOT NULL;
 
 -- =================================================================
--- ADD THREAD_ID TO EMAILS TABLE
+-- RECREATE FOREIGN KEY from emails table
 -- =================================================================
 
--- Add thread_id column to emails table to link emails to threads
-ALTER TABLE emails ADD COLUMN thread_id UUID REFERENCES threads(id) ON DELETE SET NULL;
-
--- Index for fast lookup of emails in a thread
-CREATE INDEX idx_emails_thread_id ON emails(thread_id, date_sent DESC);
+-- Add thread_id column to emails table if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='emails' AND column_name='thread_id'
+    ) THEN
+        ALTER TABLE emails ADD COLUMN thread_id UUID REFERENCES threads(id) ON DELETE SET NULL;
+        CREATE INDEX idx_emails_thread_id ON emails(thread_id, date_sent DESC);
+    END IF;
+END $$;
 
 -- =================================================================
 -- AUTO-UPDATE TIMESTAMP
