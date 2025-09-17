@@ -83,8 +83,8 @@ CREATE TABLE emails (
     -- =============================================================
     
     -- IMAP folder/mailbox where email is stored
-    -- Examples: "INBOX", "Sent", "Drafts", "Trash"
-    folder TEXT DEFAULT 'INBOX',
+    -- Examples: "[Gmail]/Alle Nachrichten", "[Gmail]/Gesendet", "[Gmail]/Entwürfe"
+    folder TEXT DEFAULT NULL,
     
     -- =============================================================
     -- GMAIL SPECIFIC FIELDS

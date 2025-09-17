@@ -3,7 +3,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb'
 // 🏗️ DATABASE SCHEMA: Defines the structure of our SQLite database
 // This must match the structure of your remote PostgreSQL table
 export const schema = appSchema({
-  version: 4,  // Schema version - increment when making changes
+  version: 7,  // Schema version - increment when making changes
   
   tables: [
     tableSchema({
@@ -40,6 +40,25 @@ export const schema = appSchema({
         { name: 'date_sent', type: 'number' },
         { name: 'is_read', type: 'boolean' },
         { name: 'gmail_thread_id', type: 'number', isOptional: true },
+        { name: 'imap_uid', type: 'number', isOptional: true },  // Added for IMAP sync
+        { name: 'account_id', type: 'string', isOptional: true }, // Added for IMAP sync
+        { name: 'folder', type: 'string', isOptional: true },     // Track IMAP folder source
+        { name: 'created_at', type: 'number' },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    tableSchema({
+      name: 'imap_sync_queue',
+      columns: [
+        { name: 'email_id', type: 'string' },                    // Reference to email
+        { name: 'imap_uid', type: 'number' },                    // IMAP UID of the email
+        { name: 'operation_type', type: 'string' },              // 'mark_read' or 'mark_unread'
+        { name: 'folder_name', type: 'string' },                 // Folder like '[Gmail]/Alle Nachrichten'
+        { name: 'account_id', type: 'string' },                  // Which email account
+        { name: 'attempts', type: 'number' },                    // Retry counter (starts at 0)
+        { name: 'last_error', type: 'string', isOptional: true }, // Last error message if failed
+        { name: 'status', type: 'string' },                      // 'pending', 'processing', 'failed'
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
