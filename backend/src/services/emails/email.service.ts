@@ -85,7 +85,7 @@ export class EmailDatabaseService {
       is_read: email.isRead || false,
       is_starred: false,
       is_deleted: false,
-      folder: email.folder || '[Gmail]/Alle Nachrichten',  // Use actual folder from IMAP or default to Gmail Alle Nachrichten
+      folder: email.folder || null,  // Use actual folder from IMAP - no hardcoded defaults
       gmail_thread_id: email.gmailThreadId ? parseInt(email.gmailThreadId) : null,
       sync_status: 'synced',
       contact_id: contactId

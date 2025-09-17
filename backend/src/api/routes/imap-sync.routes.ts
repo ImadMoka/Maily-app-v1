@@ -22,13 +22,17 @@ export class ImapSyncRoutes {
       // 2. Get request data
       const body = await request.json() as {
         imapUid: number
-        folderName?: string // Optional, defaults to "All Mail"/"Alle Nachrichten"
+        folderName: string // Required - must come from database
       }
 
       const { imapUid, folderName } = body
 
       if (!imapUid) {
         return Response.json({ error: 'Missing required field: imapUid' }, { status: 400 })
+      }
+
+      if (!folderName) {
+        return Response.json({ error: 'Missing required field: folderName. Email folder must be provided from database.' }, { status: 400 })
       }
 
       // 3. Create user client (user privileges - RLS enforced) 
@@ -50,10 +54,7 @@ export class ImapSyncRoutes {
         tls: true
       }, {
         uid: imapUid,
-        folderName: folderName || '[Gmail]/Alle Nachrichten' // Use provided folder or default to Gmail Alle Nachrichten
-      }, {
-        userId: user.id,
-        accountId: account.id
+        folderName: folderName
       })
 
       if (!result.success) {

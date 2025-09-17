@@ -15,6 +15,7 @@
         "dotenv": "^17.2.2",
         "mailparser": "^3.7.4",
         "node-imap": "^0.9.6",
+        "utf7": "^1.0.2",
         "zod": "^4.1.5",
       },
       "devDependencies": {
