@@ -1,6 +1,7 @@
 import { Model, Relation } from '@nozbe/watermelondb'
 import { field, date, readonly, relation } from '@nozbe/watermelondb/decorators'
 import { Contact } from './Contact'
+import type { Thread } from './Thread'
 
 export class Email extends Model {
   static table = 'emails'
@@ -9,6 +10,10 @@ export class Email extends Model {
   @field('message_id') messageId!: string
   @field('contact_id') contactId?: string
   @relation('contacts', 'contact_id') contact?: Relation<Contact>
+
+  // Thread relationship
+  @field('thread_id') threadId?: string
+  @relation('threads', 'thread_id') thread?: Relation<Thread>
 
   @field('subject') subject?: string
   @field('from_address') fromAddress!: string

@@ -5,6 +5,7 @@ import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId'
 import { schema } from './schema'
 import { Contact } from './models/Contact'
 import { Email } from './models/Email'
+import { Thread } from './models/Thread'
 import ImapSyncQueue from './models/ImapSyncQueue'
 
 // 🆔 UUID GENERATOR: Creates RFC4122 compliant UUIDs for database records
@@ -31,7 +32,7 @@ setGenerator(() => generateUUID())
 // 🌍 GLOBAL DATABASE INSTANCE: This is what your app components will use
 export const database = new Database({
   adapter,                // SQLite adapter with our schema
-  modelClasses: [Contact, Email, ImapSyncQueue] // Register our model classes
+  modelClasses: [Contact, Email, Thread, ImapSyncQueue] // Register our model classes
 })
 
 // ✅ UUID GENERATION: Now WatermelonDB automatically uses our UUID generator
