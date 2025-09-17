@@ -30,6 +30,7 @@ export interface EmailMessage {
   isRead?: boolean
   size: number
   gmailThreadId?: string | null
+  folder: string // Track which IMAP folder this email came from
 }
 
 

@@ -90,6 +90,7 @@ BEGIN
               'gmail_thread_id', e.gmail_thread_id,
               'imap_uid', e.imap_uid,              -- NEW: Added IMAP UID
               'account_id', e.account_id,          -- NEW: Added account ID
+              'folder', e.folder,                   -- NEW: Added folder field
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -117,6 +118,7 @@ BEGIN
               'gmail_thread_id', e.gmail_thread_id,
               'imap_uid', e.imap_uid,              -- NEW: Added IMAP UID
               'account_id', e.account_id,          -- NEW: Added account ID
+              'folder', e.folder,                   -- NEW: Added folder field
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -205,7 +207,7 @@ BEGIN
     INSERT INTO emails (
       id, contact_id, message_id, subject, from_address, from_name,
       date_sent, is_read, gmail_thread_id,
-      imap_uid, account_id,  -- NEW: Added IMAP fields
+      imap_uid, account_id, folder,  -- NEW: Added IMAP fields and folder
       created_at, updated_at
     )
     VALUES (
@@ -220,6 +222,7 @@ BEGIN
       NULLIF(new_email->>'gmail_thread_id', '')::BIGINT,
       NULLIF(new_email->>'imap_uid', '')::INTEGER,        -- NEW: Handle IMAP UID
       NULLIF(new_email->>'account_id', '')::UUID,        -- NEW: Handle account ID
+      NULLIF(new_email->>'folder', ''),                  -- NEW: Handle folder
       epoch_to_timestamp((new_email->>'created_at')::BIGINT),
       epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
     )
@@ -233,6 +236,7 @@ BEGIN
       gmail_thread_id = EXCLUDED.gmail_thread_id,
       imap_uid = EXCLUDED.imap_uid,                       -- NEW: Update IMAP UID
       account_id = EXCLUDED.account_id,                   -- NEW: Update account ID
+      folder = EXCLUDED.folder,                           -- NEW: Update folder
       updated_at = EXCLUDED.updated_at
     WHERE EXISTS (
       SELECT 1 FROM email_accounts
@@ -255,6 +259,7 @@ BEGIN
       gmail_thread_id = NULLIF(updated_email->>'gmail_thread_id', '')::BIGINT,
       imap_uid = NULLIF(updated_email->>'imap_uid', '')::INTEGER,     -- NEW: Update IMAP UID
       account_id = NULLIF(updated_email->>'account_id', '')::UUID,   -- NEW: Update account ID
+      folder = NULLIF(updated_email->>'folder', ''),                 -- NEW: Update folder
       updated_at = epoch_to_timestamp((updated_email->>'updated_at')::BIGINT)
     WHERE id = (updated_email->>'id')::UUID
       AND EXISTS (

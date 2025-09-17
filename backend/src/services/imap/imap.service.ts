@@ -67,7 +67,7 @@ export class ImapService {
   async fetchRecentEmails(config: ImapConnectionConfig, limit: number = 50, userContext?: { userId: string, accountId: string }): Promise<FetchEmailsResult> {
     if (userContext?.userId && userContext?.accountId) {
       const cachedConnection = imapConnectionCache.get(userContext.userId, userContext.accountId)
-      
+
       if (cachedConnection) {
         console.log(`♻️ Using cached IMAP connection for user:${userContext.userId}, account:${userContext.accountId}`)
         return this.doFetchEmails(cachedConnection, limit, true)
@@ -132,7 +132,7 @@ export class ImapService {
       }
 
       // Try common folders in order
-      this.openBestFolder(imap, (err: any, box: any) => {
+      this.openBestFolder(imap, (err: any, box: any, folderName: string) => {
         if (err) {
           resolve({
             success: false,
@@ -141,33 +141,36 @@ export class ImapService {
           return
         }
 
-        this.fetchEmailsFromBox(imap, limit, isFromCache, resolve)
+        this.fetchEmailsFromBox(imap, limit, isFromCache, folderName, resolve)
       })
     })
   }
 
-  private openBestFolder(imap: any, callback: (err: any, box: any) => void) {
-    const folders = ['INBOX', '[Gmail]/All Mail']
-    
+  private openBestFolder(imap: any, callback: (err: any, box: any, folderName: string) => void) {
+    // For Gmail, use Alle Nachrichten folder which contains everything (German localization)
+    const folders = ['[Gmail]/Alle Nachrichten']
+
     const tryFolder = (index: number) => {
       if (index >= folders.length) {
-        callback(new Error('Could not open any mailbox folder'), null)
+        callback(new Error('Could not open any mailbox folder'), null, '')
         return
       }
-      
+
       imap.openBox(folders[index], true, (err: any, box: any) => {
         if (err) {
           tryFolder(index + 1)
         } else {
-          callback(null, box)
+          // Pass the successfully opened folder name
+          console.log(`📁 Using folder: ${folders[index]} for fetching emails`)
+          callback(null, box, folders[index] || '')
         }
       })
     }
-    
+
     tryFolder(0)
   }
 
-  private fetchEmailsFromBox(imap: any, limit: number, isFromCache: boolean, resolve: any) {
+  private fetchEmailsFromBox(imap: any, limit: number, isFromCache: boolean, folderName: string, resolve: any) {
     imap.search(['ALL'], (err: any, results: any) => {
       if (err) {
         resolve({
@@ -250,7 +253,8 @@ export class ImapService {
               bodyPreview: '',
               isRead: flags.includes('\\Seen'), // Actual read status from IMAP
               size: this.calculateMessageSize(structure),
-              gmailThreadId: gmailThreadId
+              gmailThreadId: gmailThreadId,
+              folder: folderName  // Track which folder this email came from
             })
 
             if (processedCount === recentUids.length) {
@@ -401,60 +405,40 @@ export class ImapService {
     shouldCloseConnection: boolean
   ): Promise<{ success: boolean, error?: string }> {
     return new Promise((resolve) => {
-      // Try the specified folder first, then fallback to INBOX
-      const folderVariations = [
-        params.folderName,
-        'INBOX',
-        '[Gmail]/All Mail'
-      ]
+      // Use the exact folder provided - no guessing
+      const folderName = params.folderName || '[Gmail]/Alle Nachrichten'
 
-      let folderOpened = false
-      let currentFolderIndex = 0
-
-      const tryOpenFolder = () => {
-        if (currentFolderIndex >= folderVariations.length) {
+      imap.openBox(folderName, false, (err: any, box: any) => {
+        if (err) {
+          console.error(`❌ Failed to open folder "${folderName}": ${err.message}`)
           if (shouldCloseConnection) imap.end()
           resolve({
             success: false,
-            error: `Could not open folder: ${params.folderName}`
+            error: `Could not open folder "${folderName}": ${err.message}`
           })
           return
         }
 
-        const currentFolder = folderVariations[currentFolderIndex]
+        console.log(`📁 Successfully opened folder: ${folderName}`)
 
-        imap.openBox(currentFolder, false, (err: any, box: any) => {
+        // Add the \Seen flag to the message
+        imap.addFlags(params.uid + ':' + params.uid, ['\\Seen'], (err: any) => {
+          if (shouldCloseConnection) imap.end()
+
           if (err) {
-            console.log(`⚠️ Failed to open folder "${currentFolder}": ${err.message}`)
-            currentFolderIndex++
-            tryOpenFolder() // Try next folder variation
-            return
+            console.error(`❌ Failed to mark UID ${params.uid} as read in ${folderName}:`, err)
+            resolve({
+              success: false,
+              error: `Failed to set \\Seen flag: ${err.message}`
+            })
+          } else {
+            console.log(`✅ Successfully marked UID ${params.uid} as read in ${folderName}`)
+            resolve({
+              success: true
+            })
           }
-
-          console.log(`📁 Successfully opened folder: ${currentFolder}`)
-          folderOpened = true
-
-          // Add the \Seen flag to the message
-          imap.addFlags(params.uid + ':' + params.uid, ['\\Seen'], (err: any) => {
-            if (shouldCloseConnection) imap.end()
-
-            if (err) {
-              console.error(`❌ Failed to mark UID ${params.uid} as read:`, err)
-              resolve({
-                success: false,
-                error: `Failed to set \\Seen flag: ${err.message}`
-              })
-            } else {
-              console.log(`✅ Successfully marked UID ${params.uid} as read`)
-              resolve({
-                success: true
-              })
-            }
-          })
         })
-      }
-
-      tryOpenFolder()
+      })
     })
   }
 }

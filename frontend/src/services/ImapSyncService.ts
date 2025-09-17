@@ -25,7 +25,7 @@ class ImapSyncService {
         item.emailId = params.emailId
         item.imapUid = params.imapUid
         item.operationType = 'mark_read'
-        item.folderName = params.folderName || 'INBOX'
+        item.folderName = params.folderName || '[Gmail]/Alle Nachrichten'  // Use provided folder or fallback to Gmail Alle Nachrichten
         item.accountId = params.accountId
         item.attempts = 0
         item.status = 'pending'
@@ -90,31 +90,45 @@ class ImapSyncService {
         }
       })
 
-      // Process each item
-      for (const item of items) {
-        stats.processed++
+      // Process as batch
+      stats.processed = items.length
 
-        try {
-          await this.syncWithImap(item)
+      try {
+        // Call batch API
+        const results = await this.syncBatchWithImap(items)
 
-          // Success - remove from queue
-          await database.write(async () => {
-            await item.markAsDeleted()
-          })
+        // Process results
+        await database.write(async () => {
+          for (const item of items) {
+            const result = results.find(r => r.imapUid === item.imapUid)
 
-          stats.succeeded++
-        } catch (error) {
-          stats.failed++
+            if (result?.success) {
+              await item.markAsDeleted()  // Remove successful items
+              stats.succeeded++
+            } else {
+              // Handle failure
+              await item.update(record => {
+                record.attempts += 1
+                record.lastError = result?.error || 'Unknown error'
+                record.status = record.attempts < 3 ? 'pending' : 'failed'
+              })
+              stats.failed++
+            }
+          }
+        })
+      } catch (error) {
+        // Complete batch failure - retry all items
+        stats.failed = items.length
 
-          // Handle failure - increment attempts
-          await database.write(async () => {
+        await database.write(async () => {
+          for (const item of items) {
             await item.update(record => {
               record.attempts += 1
-              record.lastError = error instanceof Error ? error.message : 'Unknown error'
+              record.lastError = error instanceof Error ? error.message : 'Batch request failed'
               record.status = record.attempts < 3 ? 'pending' : 'failed'
             })
-          })
-        }
+          }
+        })
       }
 
       return stats
@@ -124,7 +138,48 @@ class ImapSyncService {
   }
 
   /**
-   * Sync a single item with the IMAP server
+   * Sync multiple items with the IMAP server using batch API
+   */
+  private async syncBatchWithImap(items: ImapSyncQueue[]): Promise<Array<{ imapUid: number, success: boolean, error?: string }>> {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('No authentication session')
+
+    // Create batch operations
+    const operations = items.map(item => ({
+      imapUid: item.imapUid,
+      folderName: item.folderName
+    }))
+
+    // Create fetch with 15 second timeout for batch
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+    try {
+      const response = await fetch('http://localhost:3000/api/imap/mark-read-batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ operations }),
+        signal: controller.signal
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || `HTTP ${response.status}`)
+      }
+
+      const data = await response.json()
+      return data.results || []
+
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
+  /**
+   * Sync a single item with the IMAP server (fallback for individual operations)
    */
   private async syncWithImap(item: ImapSyncQueue): Promise<void> {
     const { data: { session } } = await supabase.auth.getSession()

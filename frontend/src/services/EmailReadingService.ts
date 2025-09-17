@@ -19,7 +19,8 @@ export const markEmailAsRead = async (email: Email) => {
     await imapSyncService.queueMarkAsRead({
       emailId: email.id,
       imapUid: email.imapUid,
-      accountId: email.accountId
+      accountId: email.accountId,
+      folderName: email.folder || '[Gmail]/Alle Nachrichten'  // Use folder from email or default to Gmail Alle Nachrichten
     })
   }
 

@@ -50,7 +50,7 @@ export class ImapSyncRoutes {
         tls: true
       }, {
         uid: imapUid,
-        folderName: folderName || 'INBOX' // Default to INBOX
+        folderName: folderName || '[Gmail]/Alle Nachrichten' // Use provided folder or default to Gmail Alle Nachrichten
       }, {
         userId: user.id,
         accountId: account.id

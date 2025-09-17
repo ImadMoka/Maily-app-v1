@@ -20,6 +20,7 @@ export class Email extends Model {
   // IMAP sync fields
   @field('imap_uid') imapUid?: number
   @field('account_id') accountId?: string
+  @field('folder') folder?: string
 
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date
