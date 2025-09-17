@@ -91,6 +91,7 @@ BEGIN
               'imap_uid', e.imap_uid,              -- NEW: Added IMAP UID
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
+              'thread_id', e.thread_id,             -- NEW: Added thread reference
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -119,6 +120,7 @@ BEGIN
               'imap_uid', e.imap_uid,              -- NEW: Added IMAP UID
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
+              'thread_id', e.thread_id,             -- NEW: Added thread reference
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -128,6 +130,63 @@ BEGIN
           WHERE ea.user_id = requesting_user_id
             AND e.updated_at > cutoff_time
             AND e.created_at <= cutoff_time),
+          '[]'::jsonb
+        ),
+
+        'deleted', '[]'::jsonb
+      ),
+
+      'threads', jsonb_build_object(
+        -- CREATED RECORDS: Threads created since last sync
+        'created', COALESCE(
+          (SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', t.id,
+              'contact_id', t.contact_id,
+              'gmail_thread_id', t.gmail_thread_id,
+              'subject', t.subject,
+              'last_email_preview', t.last_email_preview,
+              'last_email_from', t.last_email_from,
+              'email_count', t.email_count,
+              'unread_count', t.unread_count,
+              'first_email_date', timestamp_to_epoch(t.first_email_date),
+              'last_email_date', timestamp_to_epoch(t.last_email_date),
+              'is_read', t.is_read,
+              'created_at', timestamp_to_epoch(t.created_at),
+              'updated_at', timestamp_to_epoch(t.updated_at)
+            )
+          )
+          FROM threads t
+          JOIN contacts c ON t.contact_id = c.id
+          WHERE c.user_id = requesting_user_id
+            AND t.created_at > cutoff_time),
+          '[]'::jsonb
+        ),
+
+        -- UPDATED RECORDS: Existing threads that were modified
+        'updated', COALESCE(
+          (SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', t.id,
+              'contact_id', t.contact_id,
+              'gmail_thread_id', t.gmail_thread_id,
+              'subject', t.subject,
+              'last_email_preview', t.last_email_preview,
+              'last_email_from', t.last_email_from,
+              'email_count', t.email_count,
+              'unread_count', t.unread_count,
+              'first_email_date', timestamp_to_epoch(t.first_email_date),
+              'last_email_date', timestamp_to_epoch(t.last_email_date),
+              'is_read', t.is_read,
+              'created_at', timestamp_to_epoch(t.created_at),
+              'updated_at', timestamp_to_epoch(t.updated_at)
+            )
+          )
+          FROM threads t
+          JOIN contacts c ON t.contact_id = c.id
+          WHERE c.user_id = requesting_user_id
+            AND t.updated_at > cutoff_time
+            AND t.created_at <= cutoff_time),
           '[]'::jsonb
         ),
 
@@ -154,6 +213,8 @@ DECLARE
   updated_contact JSONB;
   new_email JSONB;
   updated_email JSONB;
+  new_thread JSONB;
+  updated_thread JSONB;
 BEGIN
   -- CREATE CONTACTS (unchanged)
   FOR new_contact IN
@@ -207,7 +268,7 @@ BEGIN
     INSERT INTO emails (
       id, contact_id, message_id, subject, from_address, from_name,
       date_sent, is_read, gmail_thread_id,
-      imap_uid, account_id, folder,  -- NEW: Added IMAP fields and folder
+      imap_uid, account_id, folder, thread_id,  -- NEW: Added IMAP fields, folder, and thread_id
       created_at, updated_at
     )
     VALUES (
@@ -223,6 +284,7 @@ BEGIN
       NULLIF(new_email->>'imap_uid', '')::INTEGER,        -- NEW: Handle IMAP UID
       NULLIF(new_email->>'account_id', '')::UUID,        -- NEW: Handle account ID
       NULLIF(new_email->>'folder', ''),                  -- NEW: Handle folder
+      NULLIF(new_email->>'thread_id', '')::UUID,         -- NEW: Handle thread ID
       epoch_to_timestamp((new_email->>'created_at')::BIGINT),
       epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
     )
@@ -237,6 +299,7 @@ BEGIN
       imap_uid = EXCLUDED.imap_uid,                       -- NEW: Update IMAP UID
       account_id = EXCLUDED.account_id,                   -- NEW: Update account ID
       folder = EXCLUDED.folder,                           -- NEW: Update folder
+      thread_id = EXCLUDED.thread_id,                     -- NEW: Update thread ID
       updated_at = EXCLUDED.updated_at
     WHERE EXISTS (
       SELECT 1 FROM email_accounts
@@ -260,6 +323,7 @@ BEGIN
       imap_uid = NULLIF(updated_email->>'imap_uid', '')::INTEGER,     -- NEW: Update IMAP UID
       account_id = NULLIF(updated_email->>'account_id', '')::UUID,   -- NEW: Update account ID
       folder = NULLIF(updated_email->>'folder', ''),                 -- NEW: Update folder
+      thread_id = NULLIF(updated_email->>'thread_id', '')::UUID,     -- NEW: Update thread ID
       updated_at = epoch_to_timestamp((updated_email->>'updated_at')::BIGINT)
     WHERE id = (updated_email->>'id')::UUID
       AND EXISTS (
@@ -279,6 +343,86 @@ BEGIN
       SELECT 1 FROM email_accounts ea
       WHERE ea.id = emails.account_id
       AND ea.user_id = requesting_user_id
+    );
+
+  -- CREATE THREADS
+  FOR new_thread IN
+    SELECT jsonb_array_elements(changes->'threads'->'created')
+  LOOP
+    INSERT INTO threads (
+      id, contact_id, gmail_thread_id, subject,
+      last_email_preview, last_email_from,
+      email_count, unread_count,
+      first_email_date, last_email_date,
+      is_read,
+      created_at, updated_at
+    )
+    VALUES (
+      (new_thread->>'id')::UUID,
+      (new_thread->>'contact_id')::UUID,
+      NULLIF(new_thread->>'gmail_thread_id', '')::BIGINT,
+      new_thread->>'subject',
+      new_thread->>'last_email_preview',
+      new_thread->>'last_email_from',
+      (new_thread->>'email_count')::INTEGER,
+      (new_thread->>'unread_count')::INTEGER,
+      epoch_to_timestamp((new_thread->>'first_email_date')::BIGINT),
+      epoch_to_timestamp((new_thread->>'last_email_date')::BIGINT),
+      (new_thread->>'is_read')::BOOLEAN,
+      epoch_to_timestamp((new_thread->>'created_at')::BIGINT),
+      epoch_to_timestamp((new_thread->>'updated_at')::BIGINT)
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      gmail_thread_id = EXCLUDED.gmail_thread_id,
+      subject = EXCLUDED.subject,
+      last_email_preview = EXCLUDED.last_email_preview,
+      last_email_from = EXCLUDED.last_email_from,
+      email_count = EXCLUDED.email_count,
+      unread_count = EXCLUDED.unread_count,
+      first_email_date = EXCLUDED.first_email_date,
+      last_email_date = EXCLUDED.last_email_date,
+      is_read = EXCLUDED.is_read,
+      updated_at = EXCLUDED.updated_at
+    WHERE EXISTS (
+      SELECT 1 FROM contacts
+      WHERE id = EXCLUDED.contact_id
+      AND user_id = requesting_user_id
+    );
+  END LOOP;
+
+  -- UPDATE THREADS
+  FOR updated_thread IN
+    SELECT jsonb_array_elements(changes->'threads'->'updated')
+  LOOP
+    UPDATE threads SET
+      gmail_thread_id = NULLIF(updated_thread->>'gmail_thread_id', '')::BIGINT,
+      subject = updated_thread->>'subject',
+      last_email_preview = updated_thread->>'last_email_preview',
+      last_email_from = updated_thread->>'last_email_from',
+      email_count = (updated_thread->>'email_count')::INTEGER,
+      unread_count = (updated_thread->>'unread_count')::INTEGER,
+      first_email_date = epoch_to_timestamp((updated_thread->>'first_email_date')::BIGINT),
+      last_email_date = epoch_to_timestamp((updated_thread->>'last_email_date')::BIGINT),
+      is_read = (updated_thread->>'is_read')::BOOLEAN,
+      updated_at = epoch_to_timestamp((updated_thread->>'updated_at')::BIGINT)
+    WHERE id = (updated_thread->>'id')::UUID
+      AND EXISTS (
+        SELECT 1 FROM contacts c
+        WHERE c.id = threads.contact_id
+        AND c.user_id = requesting_user_id
+      );
+  END LOOP;
+
+  -- DELETE THREADS
+  WITH deleted_threads AS (
+    SELECT jsonb_array_elements_text(changes->'threads'->'deleted')::UUID AS deleted_id
+  )
+  DELETE FROM threads
+  WHERE threads.id IN (SELECT deleted_id FROM deleted_threads)
+    AND EXISTS (
+      SELECT 1 FROM contacts c
+      WHERE c.id = threads.contact_id
+      AND c.user_id = requesting_user_id
     );
 END;
 $$ LANGUAGE plpgsql;

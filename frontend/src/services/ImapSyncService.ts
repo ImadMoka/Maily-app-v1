@@ -158,17 +158,6 @@ class ImapSyncService {
     }
   }
 
-  /**
-   * Clear all items from queue (for debugging)
-   */
-  async clearQueue(): Promise<void> {
-    const items = await database.get<ImapSyncQueue>('imap_sync_queue').query().fetch()
-    await database.write(async () => {
-      for (const item of items) {
-        await item.markAsDeleted()
-      }
-    })
-  }
 }
 
 export const imapSyncService = new ImapSyncService()

@@ -13,7 +13,7 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
 }) => {
   const handleTap = async () => {
     router.push({
-      pathname: '/(app)/contact-emails',
+      pathname: '/(app)/contact-threads',
       params: {
         contactId: contact.id,
         contactName: contact.name

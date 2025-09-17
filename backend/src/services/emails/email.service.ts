@@ -2,24 +2,26 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage } from '../imap/imap.types'
 import type { SaveEmailsResult } from './emails.types'
+import { ThreadService } from '../threads/thread.service'
 
 // Database types from shared schema
 type EmailInsert = Database['public']['Tables']['emails']['Insert']
-
+type EmailUpdate = Database['public']['Tables']['emails']['Update']
 
 export class EmailDatabaseService {
+  private threadService = new ThreadService()
 
   /**
-   * Save emails to the database with automatic contact linking
-   * Simple, direct approach - no maps or complex parameters
+   * Save emails to the database with automatic contact linking and thread creation
+   * Creates threads for emails with contacts
    */
   async saveEmails(
-    userClient: SupabaseClient<Database>, 
+    userClient: SupabaseClient<Database>,
     accountId: string,
     userId: string,
     emails: EmailMessage[]
   ): Promise<SaveEmailsResult> {
-    
+
     if (emails.length === 0) {
       return { success: true, saved: 0, skipped: 0, errors: [] }
     }
@@ -30,8 +32,24 @@ export class EmailDatabaseService {
 
     for (const email of emails) {
       try {
+        // 1. Convert email and lookup contact
         const dbEmail = await this.convertEmailWithContactLookup(email, accountId, userClient, userId)
-        
+
+        // 2. Create or find thread for this email
+        if (dbEmail.contact_id) {
+          const threadId = await this.threadService.findOrCreateThread(
+            userClient,
+            email,
+            dbEmail.contact_id
+          )
+
+          if (threadId) {
+            dbEmail.thread_id = threadId
+            console.log(`📎 Email "${email.subject}" assigned to thread ${threadId}`)
+          }
+        }
+
+        // 3. Save email with thread_id
         const { error } = await userClient
           .from('emails')
           .upsert(dbEmail, { onConflict: 'account_id,message_id' })
@@ -86,7 +104,6 @@ export class EmailDatabaseService {
       is_starred: false,
       is_deleted: false,
       folder: email.folder || null,  // Use actual folder from IMAP - no hardcoded defaults
-      gmail_thread_id: email.gmailThreadId ? parseInt(email.gmailThreadId) : null,
       sync_status: 'synced',
       contact_id: contactId
     }

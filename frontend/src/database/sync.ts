@@ -33,12 +33,13 @@ async function sync() {
           
         } catch (error) {
           console.log('Pull failed, working offline:', error)
-          return { 
-            changes: { 
+          return {
+            changes: {
               contacts: { created: [], updated: [], deleted: [] },
-              emails: { created: [], updated: [], deleted: [] }
-            }, 
-            timestamp: Date.now() 
+              emails: { created: [], updated: [], deleted: [] },
+              threads: { created: [], updated: [], deleted: [] }
+            },
+            timestamp: Date.now()
           }
         }
       },

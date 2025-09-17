@@ -180,3 +180,16 @@ CREATE POLICY "Users can access emails from own accounts"
             WHERE user_id = auth.uid()
         )
     );
+
+
+
+
+-- =================================================================
+-- UPDATES EMAILS TABLE
+-- =================================================================
+
+-- Add thread_id column to emails table to link emails to threads
+ALTER TABLE emails ADD COLUMN thread_id UUID REFERENCES threads(id) ON DELETE SET NULL;
+
+-- Index for fast lookup of emails in a thread
+CREATE INDEX idx_emails_thread_id ON emails(thread_id, date_sent DESC);
