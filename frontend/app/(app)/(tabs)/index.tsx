@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 32,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.black,
     letterSpacing: -0.5,
   },
   logoutButton: {
@@ -117,17 +117,14 @@ const styles = StyleSheet.create({
     bottom: 24,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.white,
     borderRadius: 20,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.black,
   },
   logoutText: {
     fontSize: 14,
-    color: colors.primary,
+    color: colors.black,
     fontWeight: '600',
   },
   separator: {
