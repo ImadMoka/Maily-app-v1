@@ -153,6 +153,7 @@ export type Database = {
           size_bytes: number | null
           subject: string | null
           sync_status: string | null
+          thread_id: string | null
           to_addresses: Json | null
           updated_at: string | null
         }
@@ -178,6 +179,7 @@ export type Database = {
           size_bytes?: number | null
           subject?: string | null
           sync_status?: string | null
+          thread_id?: string | null
           to_addresses?: Json | null
           updated_at?: string | null
         }
@@ -203,6 +205,7 @@ export type Database = {
           size_bytes?: number | null
           subject?: string | null
           sync_status?: string | null
+          thread_id?: string | null
           to_addresses?: Json | null
           updated_at?: string | null
         }
@@ -216,6 +219,69 @@ export type Database = {
           },
           {
             foreignKeyName: "emails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      threads: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          email_count: number
+          first_email_date: string
+          gmail_thread_id: number | null
+          id: string
+          is_read: boolean | null
+          last_email_date: string
+          last_email_from: string | null
+          last_email_preview: string | null
+          subject: string | null
+          unread_count: number
+          updated_at: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          email_count?: number
+          first_email_date: string
+          gmail_thread_id?: number | null
+          id?: string
+          is_read?: boolean | null
+          last_email_date: string
+          last_email_from?: string | null
+          last_email_preview?: string | null
+          subject?: string | null
+          unread_count?: number
+          updated_at?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          email_count?: number
+          first_email_date?: string
+          gmail_thread_id?: number | null
+          id?: string
+          is_read?: boolean | null
+          last_email_date?: string
+          last_email_from?: string | null
+          last_email_preview?: string | null
+          subject?: string | null
+          unread_count?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"

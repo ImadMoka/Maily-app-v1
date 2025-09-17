@@ -1,9 +1,9 @@
 -- =================================================================
--- THREADS TABLE - Simplified Email Thread Management
+-- THREADS TABLE - Email Thread Management (Application-Controlled)
 -- =================================================================
 
 -- Stores pre-computed thread data for instant display when clicking a contact
--- Each thread groups emails by Gmail thread ID for conversation view
+-- Threads are created and managed by the application layer, not triggers
 CREATE TABLE threads (
     -- Primary key
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
@@ -51,6 +51,15 @@ CREATE INDEX idx_threads_contact_unread ON threads(contact_id) WHERE unread_coun
 -- Find thread by Gmail ID (for adding new emails to existing threads)
 CREATE INDEX idx_threads_gmail_id ON threads(gmail_thread_id) WHERE gmail_thread_id IS NOT NULL;
 
+-- =================================================================
+-- ADD THREAD_ID TO EMAILS TABLE
+-- =================================================================
+
+-- Add thread_id column to emails table to link emails to threads
+ALTER TABLE emails ADD COLUMN thread_id UUID REFERENCES threads(id) ON DELETE SET NULL;
+
+-- Index for fast lookup of emails in a thread
+CREATE INDEX idx_emails_thread_id ON emails(thread_id, date_sent DESC);
 
 -- =================================================================
 -- AUTO-UPDATE TIMESTAMP
@@ -75,5 +84,3 @@ CREATE POLICY "Users can access own threads"
             SELECT id FROM contacts WHERE user_id = auth.uid()
         )
     );
-
-
