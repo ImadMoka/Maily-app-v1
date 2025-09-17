@@ -7,9 +7,8 @@ import { colors } from '../../constants'
 
 const ContactItem = withObservables(['contact'], ({ contact }) => ({
   contact: contact.observe(),
-}))(({ contact, onDelete }: {
+}))(({ contact }: {
   contact: Contact
-  onDelete: (contact: Contact) => void
 }) => {
 
   // 🔄 NAVIGATION HANDLER: When user taps on contact row
@@ -95,10 +94,6 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
         </View>
       </View>
 
-      {/* 🗑️ DELETE BUTTON: Red X to remove contact */}
-      <TouchableOpacity onPress={() => onDelete(contact)}>
-        <Text style={styles.delete}>✕</Text>
-      </TouchableOpacity>
     </TouchableOpacity>
   )
 })
@@ -151,14 +146,8 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.notification,
     marginLeft: 10,
-  },
-  delete: {
-    fontSize: 16,
-    color: '#FF3B30',
-    padding: 8,
-    fontWeight: '400',
   },
   unread: {
     fontWeight: '700',

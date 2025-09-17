@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { colors } from '../../src/constants';
-import ContactThreadsList from '../../src/components/contacts/ContactThreadsList';
+import { colors } from '../../../src/constants';
+import ContactThreadsList from '../../../src/components/contacts/ContactThreadsList';
 
 export default function ContactThreadsScreen() {
   const { contactId, contactName } = useLocalSearchParams<{
@@ -13,7 +13,7 @@ export default function ContactThreadsScreen() {
   const handleViewAllEmails = () => {
     // Navigate to the full email list for this contact
     router.push({
-      pathname: '/(app)/contact-emails',
+      pathname: '/(app)/contacts/contact-emails',
       params: {
         contactId: contactId,
         contactName: contactName

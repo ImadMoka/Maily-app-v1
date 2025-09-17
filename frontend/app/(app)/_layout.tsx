@@ -1,23 +1,16 @@
-// Importiert Stack Navigation Component von Expo Router für hierarchische Navigation
+// Import Stack Navigation Component from Expo Router for hierarchical navigation
 import { Stack } from 'expo-router'
 
-// Leerzeile für Code Struktur
-// AppLayout Component - Layout für alle AUTHENTICATED App Screens
-// Diese Component wird nur gerendert wenn User eingeloggt ist
+// AppLayout Component - Layout for all AUTHENTICATED App Screens
+// This component is only rendered when user is logged in
 export default function AppLayout() {
-  // Return Statement - gibt JSX zurück das gerendert wird
+  // Return Statement - returns JSX that will be rendered
   return (
-    // Stack Navigation Container für App Screens ohne Headers
-    // screenOptions = Globale Optionen für alle Child Screens
-    // headerShown: false = Versteckt Navigation Headers für cleanes UI
+    // Stack Navigation Container for App Screens without headers
+    // screenOptions = Global options for all child screens
+    // headerShown: false = Hides navigation headers for clean UI
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Stack.Screen registriert (tabs) Route Group */}
-      {/* name="(tabs)" verlinkt zu app/(app)/(tabs)/_layout.tsx */}
-      {/* Expo Router: Parentheses () = Route Groups für Organisation */}
-      <Stack.Screen name="(tabs)" />
+      {/* Expo Router auto-discovers screens based on file structure */}
     </Stack>
-    // Schließender Tag für Stack Navigation Component
   )
-  // Schließende Klammer für return Statement
 }
-// Schließende Klammer für AppLayout Function

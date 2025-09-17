@@ -24,7 +24,7 @@ const ThreadItem = withObservables(['thread'], ({ thread }) => ({
 
     // Navigate to email list for this thread
     router.push({
-      pathname: '/(app)/thread-emails',
+      pathname: '/(app)/threads/thread-emails',
       params: {
         threadId: thread.id,
         threadSubject: thread.subject || 'Thread'

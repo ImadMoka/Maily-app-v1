@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { colors } from '../../src/constants';
-import ContactEmailsList from '../../src/components/contacts/ContactEmailsList';
+import { colors } from '../../../src/constants';
+import ContactEmailsList from '../../../src/components/contacts/ContactEmailsList';
 
 export default function ContactEmailsScreen() {
   const { contactId, contactName } = useLocalSearchParams<{
@@ -36,7 +36,7 @@ export default function ContactEmailsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
   },
   header: {
     paddingTop: 60,
@@ -45,27 +45,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
     borderBottomWidth: 0.5,
     borderBottomColor: colors.separator,
   },
   backButton: {
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: colors.background,
+    backgroundColor: colors.white,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: colors.separator,
   },
   backButtonText: {
     fontSize: 14,
-    color: colors.text,
+    color: colors.primary,
     fontWeight: '500',
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.primary,
     letterSpacing: -0.3,
     flex: 1,
     textAlign: 'center',

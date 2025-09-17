@@ -1,12 +1,12 @@
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
-import { colors } from '../../../src/constants';
-import { supabase } from '../../../src/lib/supabase';
+import { colors } from '../../src/constants';
+import { supabase } from '../../src/lib/supabase';
 import { router } from 'expo-router';
-import { useSession } from '../../../src/context/SessionContext';
-import ContactsList from '../../../src/components/contacts/ContactsList'; // Updated path for reorganized components
-import { startAutoSync } from '../../../src/database/sync';
-import { imapSyncService } from '../../../src/services/ImapSyncService';
+import { useSession } from '../../src/context/SessionContext';
+import ContactsList from '../../src/components/contacts/ContactsList'; // Updated path for reorganized components
+import { startAutoSync } from '../../src/database/sync';
+import { imapSyncService } from '../../src/services/ImapSyncService';
 
 export default function Index() {
   const [accounts, setAccounts] = useState<any[] | null>(null)
@@ -71,7 +71,7 @@ export default function Index() {
           /* 📧 NO ACCOUNTS: Show add account button */
           <View style={styles.noAccountsContent}>
             <Text style={styles.noAccountsText}>No email accounts</Text>
-            <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
+            <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/(app)/setup/email-setup')}>
               <Text style={styles.addAccountText}>Add Email Account</Text>
             </TouchableOpacity>
           </View>

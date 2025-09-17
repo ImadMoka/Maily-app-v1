@@ -13,7 +13,7 @@ function RootNavigator() {
       if (session) {
         // TODO: Check if user has completed profile setup
         // For now, let manual navigation handle it
-        // router.replace('/(app)/(tabs)')
+        // router.replace('/(app)')
       } else {
         router.replace('/(auth)/auth')
       }

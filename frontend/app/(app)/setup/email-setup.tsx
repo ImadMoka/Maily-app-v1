@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native'
 import { useState } from 'react'
 import { router } from 'expo-router'
-import { colors } from '../../src/constants'
+import { colors } from '../../../src/constants'
 
 export default function EmailSetup() {
   const [email, setEmail] = useState('')
@@ -12,14 +12,14 @@ export default function EmailSetup() {
       return
     }
     router.push({
-      pathname: '/(app)/email-setup-step2',
+      pathname: '/(app)/setup/email-setup-step2',
       params: { email }
     })
   }
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)/(tabs)/')}>
+      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)')}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
       <Text style={styles.stepTitle}>Step 1</Text>
