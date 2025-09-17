@@ -6,12 +6,10 @@ import { router } from 'expo-router';
 import { useSession } from '../../../src/context/SessionContext';
 import ContactsList from '../../../src/components/contacts/ContactsList'; // Updated path for reorganized components
 import { startAutoSync } from '../../../src/database/sync';
-import { ImapQueueDebug } from '../../../src/components/debug/ImapQueueDebug';
 import { imapSyncService } from '../../../src/services/ImapSyncService';
 
 export default function Index() {
   const [accounts, setAccounts] = useState<any[] | null>(null)
-  const [showDebug, setShowDebug] = useState(false)
   const { session } = useSession()
 
   useEffect(() => {
@@ -53,9 +51,7 @@ export default function Index() {
     <View style={styles.container}>
       {/* Header Section */}
       <View style={styles.headerSection}>
-        <TouchableOpacity onPress={() => setShowDebug(!showDebug)} activeOpacity={0.7}>
-          <Text style={styles.heading}>Maily</Text>
-        </TouchableOpacity>
+        <Text style={styles.heading}>Maily</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -63,9 +59,6 @@ export default function Index() {
 
       {/* Separator Line */}
       <View style={styles.separator} />
-
-      {/* Debug Section (shown when tapping Maily header) */}
-      {showDebug && <ImapQueueDebug />}
 
       {/* Content Section */}
       <View style={styles.contentSection}>
