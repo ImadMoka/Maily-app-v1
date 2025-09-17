@@ -3,7 +3,7 @@
 // Following the same pattern as TodoApp in your todo app
 
 import React, { useState } from 'react'
-import { View, Text, FlatList, StyleSheet, Alert } from 'react-native'
+import { View, Text, FlatList, StyleSheet, Alert, TextInput } from 'react-native'
 import { Q } from '@nozbe/watermelondb'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { database } from '../../database' // Updated path since we're now in contacts/ subfolder
@@ -27,6 +27,24 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
   // 📝 LOCAL STATE: For form visibility and editing
   const [showForm, setShowForm] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  // 🔍 SEARCH STATE: Remembers what user types in search box
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // 🔍 FILTER LOGIC: Filter contacts based on search term
+  const filteredContacts = contacts.filter(contact => {
+    // If no search term, show all contacts
+    if (!searchTerm.trim()) return true
+
+    // Convert search term to lowercase for case-insensitive search
+    const search = searchTerm.toLowerCase().trim()
+
+    // Check if name or email contains the search term
+    const nameMatches = contact.name.toLowerCase().includes(search)
+    const emailMatches = contact.email.toLowerCase().includes(search)
+
+    // Return true if either name or email matches
+    return nameMatches || emailMatches
+  })
 
   // ➕ CREATE OPERATION: Add new contact to local database
   const createContact = async (contactData: { name: string; email: string }) => {
@@ -104,7 +122,8 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
       <View style={styles.header}>
         <Text style={styles.title}>Contacts</Text>
         <Text style={styles.subtitle}>
-          {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
+          {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}
+          {searchTerm && ` (filtered)`}
         </Text>
       </View>
 
@@ -129,9 +148,20 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         </View>
       )}
 
+      {/* 🔍 SEARCH BAR: Text input for filtering contacts */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search contacts..."
+          placeholderTextColor={colors.text}
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+        />
+      </View>
+
       {/* 📋 CONTACTS LIST: Uses individual ContactItem components for proper reactivity */}
       <FlatList
-        data={contacts}                       // ⚡ List changes update automatically!
+        data={filteredContacts}              // ⚡ Now shows filtered contacts based on search!
         keyExtractor={(item) => item.id}      // Use database ID as React key
         renderItem={({ item }) => (
           <ContactItem
@@ -153,10 +183,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingVertical: 16,
+    paddingVertical: 8,
     paddingHorizontal: 20,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.separator,
     backgroundColor: colors.background,
   },
   title: {
@@ -171,9 +199,7 @@ const styles = StyleSheet.create({
   },
   addButtonContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.separator,
+    paddingVertical: 8,
     backgroundColor: colors.background,
   },
   addButton: {
@@ -187,6 +213,21 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     backgroundColor: colors.background,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
+  },
+  searchInput: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.separator,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
 })
 
