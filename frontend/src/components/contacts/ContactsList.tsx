@@ -3,7 +3,7 @@
 // Following the same pattern as TodoApp in your todo app
 
 import React, { useState } from 'react'
-import { View, Text, FlatList, StyleSheet, Alert } from 'react-native'
+import { View, Text, FlatList, StyleSheet, Alert, TextInput } from 'react-native'
 import { Q } from '@nozbe/watermelondb'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { database } from '../../database' // Updated path since we're now in contacts/ subfolder
@@ -27,6 +27,24 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
   // 📝 LOCAL STATE: For form visibility and editing
   const [showForm, setShowForm] = useState(false)
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  // 🔍 SEARCH STATE: Remembers what user types in search box
+  const [searchTerm, setSearchTerm] = useState('')
+
+  // 🔍 FILTER LOGIC: Filter contacts based on search term
+  const filteredContacts = contacts.filter(contact => {
+    // If no search term, show all contacts
+    if (!searchTerm.trim()) return true
+
+    // Convert search term to lowercase for case-insensitive search
+    const search = searchTerm.toLowerCase().trim()
+
+    // Check if name or email contains the search term
+    const nameMatches = contact.name.toLowerCase().includes(search)
+    const emailMatches = contact.email.toLowerCase().includes(search)
+
+    // Return true if either name or email matches
+    return nameMatches || emailMatches
+  })
 
   // ➕ CREATE OPERATION: Add new contact to local database
   const createContact = async (contactData: { name: string; email: string }) => {
@@ -104,7 +122,8 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
       <View style={styles.header}>
         <Text style={styles.title}>Contacts</Text>
         <Text style={styles.subtitle}>
-          {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
+          {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}
+          {searchTerm && ` (filtered)`}
         </Text>
       </View>
 
@@ -129,9 +148,20 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         </View>
       )}
 
+      {/* 🔍 SEARCH BAR: Text input for filtering contacts */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search contacts..."
+          placeholderTextColor={colors.text}
+          value={searchTerm}
+          onChangeText={setSearchTerm}
+        />
+      </View>
+
       {/* 📋 CONTACTS LIST: Uses individual ContactItem components for proper reactivity */}
       <FlatList
-        data={contacts}                       // ⚡ List changes update automatically!
+        data={filteredContacts}              // ⚡ Now shows filtered contacts based on search!
         keyExtractor={(item) => item.id}      // Use database ID as React key
         renderItem={({ item }) => (
           <ContactItem
@@ -150,46 +180,54 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.secondary,
-    paddingHorizontal: 16,
+    backgroundColor: colors.background,
   },
   header: {
-    paddingVertical: 16,
-    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.primary,
-    opacity: 0.7,
+    fontSize: 15,
+    color: colors.textSecondary,
   },
   addButtonContainer: {
-    marginBottom: 16,
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
   },
   addButton: {
-    fontSize: 16,
+    fontSize: 17,
     color: colors.primary,
     fontWeight: '600',
-    backgroundColor: colors.white,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-    overflow: 'hidden',
-    textAlign: 'center',
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.background,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    textAlign: 'left',
   },
   listContainer: {
-    paddingBottom: 20,
+    backgroundColor: colors.background,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
+  },
+  searchInput: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.separator,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: colors.textSecondary,
   },
 })
 
