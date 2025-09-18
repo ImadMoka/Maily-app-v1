@@ -16,7 +16,7 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
   // Passes contactId and contactName as route parameters
   const handleTap = async () => {
     router.push({
-      pathname: '/(app)/contact-threads',
+      pathname: '/(app)/contacts/contact-threads',
       params: {
         contactId: contact.id,
         contactName: contact.name
