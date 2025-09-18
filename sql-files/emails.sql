@@ -193,3 +193,6 @@ ALTER TABLE emails ADD COLUMN thread_id UUID REFERENCES threads(id) ON DELETE SE
 
 -- Index for fast lookup of emails in a thread
 CREATE INDEX idx_emails_thread_id ON emails(thread_id, date_sent DESC);
+
+-- Add email_type column to emails table
+ALTER TABLE emails ADD COLUMN email_type TEXT;

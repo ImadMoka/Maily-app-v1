@@ -21,11 +21,8 @@ CREATE TABLE email_body (
     -- EMAIL CONTENT
     -- =============================================================
 
-    -- Plain text version of email body
-    body_plain TEXT,
-
-    -- HTML version of email body
-    body_html TEXT,
+    -- Email body
+    body TEXT,
 
     -- =============================================================
     -- SYNC AND AUDIT TRACKING

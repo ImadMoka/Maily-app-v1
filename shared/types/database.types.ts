@@ -132,24 +132,21 @@ export type Database = {
       }
       email_body: {
         Row: {
-          body_html: string | null
-          body_plain: string | null
+          body: string | null
           created_at: string | null
           email_id: string
           id: string
           updated_at: string | null
         }
         Insert: {
-          body_html?: string | null
-          body_plain?: string | null
+          body?: string | null
           created_at?: string | null
           email_id: string
           id?: string
           updated_at?: string | null
         }
         Update: {
-          body_html?: string | null
-          body_plain?: string | null
+          body?: string | null
           created_at?: string | null
           email_id?: string
           id?: string
@@ -173,6 +170,7 @@ export type Database = {
           created_at: string | null
           date_received: string | null
           date_sent: string
+          email_type: string | null
           folder: string | null
           from_address: string
           from_name: string | null
@@ -199,6 +197,7 @@ export type Database = {
           created_at?: string | null
           date_received?: string | null
           date_sent: string
+          email_type?: string | null
           folder?: string | null
           from_address: string
           from_name?: string | null
@@ -225,6 +224,7 @@ export type Database = {
           created_at?: string | null
           date_received?: string | null
           date_sent?: string
+          email_type?: string | null
           folder?: string | null
           from_address?: string
           from_name?: string | null
