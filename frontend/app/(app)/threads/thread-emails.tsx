@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { colors } from '../../src/constants';
+import { colors } from '../../../src/constants';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '../../src/database';
-import { Email } from '../../src/database/models/Email';
-import { Thread } from '../../src/database/models/Thread';
-import { markEmailAsRead } from '../../src/services/EmailReadingService';
+import { database } from '../../../src/database';
+import { Email } from '../../../src/database/models/Email';
+import { Thread } from '../../../src/database/models/Thread';
+import { markEmailAsRead } from '../../../src/services/EmailReadingService';
 
 // Observable email item component
 const EmailItem = withObservables(['email'], ({ email }) => ({
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#28a745',
+    backgroundColor: colors.notification,
     marginLeft: 8,
   },
 });

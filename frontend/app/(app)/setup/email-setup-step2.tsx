@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, Linking, TextInput, Alert } from 'react-native'
 import { useState } from 'react'
 import { router, useLocalSearchParams } from 'expo-router'
-import { useSession } from '../../src/context/SessionContext'
-import { colors } from '../../src/constants'
+import { useSession } from '../../../src/context/SessionContext'
+import { colors } from '../../../src/constants'
 
 export default function EmailSetupStep2() {
   const [appPassword, setAppPassword] = useState('')
@@ -48,7 +48,7 @@ export default function EmailSetupStep2() {
 
       if (response.ok && data.success) {
         Alert.alert('Success', 'Email account setup complete!', [
-          { text: 'OK', onPress: () => router.push('/(app)/(tabs)/') }
+          { text: 'OK', onPress: () => router.push('/(app)/(tabs)') }
         ])
       } else {
         Alert.alert('Error', data.error || 'Failed to setup email account')
@@ -64,7 +64,7 @@ export default function EmailSetupStep2() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)/(tabs)/')}>
+      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)/(tabs)')}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
       <Text style={styles.stepTitle}>Step 2</Text>

@@ -71,7 +71,7 @@ export default function Index() {
           /* 📧 NO ACCOUNTS: Show add account button */
           <View style={styles.noAccountsContent}>
             <Text style={styles.noAccountsText}>No email accounts</Text>
-            <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/email-setup')}>
+            <TouchableOpacity style={styles.addAccountButton} onPress={() => router.push('/(app)/setup/email-setup')}>
               <Text style={styles.addAccountText}>Add Email Account</Text>
             </TouchableOpacity>
           </View>
@@ -81,13 +81,6 @@ export default function Index() {
         )}
       </View>
 
-      {/* Separator Line */}
-      <View style={styles.separator} />
-
-      {/* Bottom Tabs Section */}
-      <View style={styles.tabsSection}>
-        <Text style={styles.tabsPlaceholder}>Tabs will be here</Text>
-      </View>
     </View>
   );
 }
@@ -187,20 +180,5 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
     letterSpacing: 0.5,
-  },
-  tabsSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 80,
-    backgroundColor: colors.secondary,
-    opacity: 0.3,
-  },
-  tabsPlaceholder: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-    opacity: 0.7,
   },
 });

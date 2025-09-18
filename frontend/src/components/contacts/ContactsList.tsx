@@ -3,7 +3,7 @@
 // Following the same pattern as TodoApp in your todo app
 
 import React, { useState } from 'react'
-import { View, Text, FlatList, StyleSheet, Alert, TextInput } from 'react-native'
+import { View, Text, FlatList, StyleSheet, TextInput } from 'react-native'
 import { Q } from '@nozbe/watermelondb'
 import { withObservables } from '@nozbe/watermelondb/react'
 import { database } from '../../database' // Updated path since we're now in contacts/ subfolder
@@ -77,32 +77,6 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
     // 🎯 UI UPDATES AUTOMATICALLY! The observable detects the change
   }
 
-  // 🗑️ DELETE OPERATION: Remove contact from local database
-  // TODO: Delete functionality is temporarily disabled until implementation is complete
-  const deleteContact = (contact: Contact) => {
-    // TODO: Implement proper delete functionality
-    console.log('Delete functionality coming soon for contact:', contact.name)
-    /*
-    Alert.alert(
-      'Delete Contact',
-      `Are you sure you want to delete ${contact.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            // 🔒 DATABASE WRITE: Deletion also requires write transaction
-            await database.write(async () => {
-              await contact.destroyPermanently()  // Hard delete - completely removes record
-            })
-            // 🎯 UI UPDATES AUTOMATICALLY! Observable detects deletion
-          }
-        }
-      ]
-    )
-    */
-  }
 
   // Handle edit button press
   const handleEdit = (contact: Contact) => {
@@ -118,13 +92,9 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
   // 🎨 UI RENDERING: Notice how we use the reactive `contacts` prop
   return (
     <View style={styles.container}>
-      {/* 📊 LIVE COUNTERS: These update automatically as contacts change */}
+      {/* 📊 CONTACTS HEADER */}
       <View style={styles.header}>
         <Text style={styles.title}>Contacts</Text>
-        <Text style={styles.subtitle}>
-          {filteredContacts.length} contact{filteredContacts.length !== 1 ? 's' : ''}
-          {searchTerm && ` (filtered)`}
-        </Text>
       </View>
 
       {/* 📝 ADD/EDIT CONTACT FORM */}
@@ -136,17 +106,6 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         />
       )}
 
-      {/* ➕ ADD CONTACT BUTTON (when not showing form) */}
-      {!showForm && !editingContact && (
-        <View style={styles.addButtonContainer}>
-          <Text 
-            style={styles.addButton} 
-            onPress={() => setShowForm(true)}
-          >
-            + Add Contact
-          </Text>
-        </View>
-      )}
 
       {/* 🔍 SEARCH BAR: Text input for filtering contacts */}
       <View style={styles.searchContainer}>
@@ -166,8 +125,6 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         renderItem={({ item }) => (
           <ContactItem
             contact={item}                    // 🔔 Each item observes itself for updates
-            onEdit={handleEdit}               // Pass edit function
-            onDelete={deleteContact}          // Pass delete function
           />
         )}
         showsVerticalScrollIndicator={false}
@@ -183,33 +140,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingVertical: 8,
+    paddingVertical: 20,
     paddingHorizontal: 20,
     backgroundColor: colors.background,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 15,
-    color: colors.textSecondary,
-  },
-  addButtonContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: colors.background,
-  },
-  addButton: {
-    fontSize: 17,
-    color: colors.primary,
-    fontWeight: '600',
-    backgroundColor: colors.background,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    textAlign: 'left',
+    letterSpacing: -0.5,
   },
   listContainer: {
     backgroundColor: colors.background,
