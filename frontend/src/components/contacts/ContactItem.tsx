@@ -74,23 +74,30 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
         <Text style={styles.avatarText}>{getInitials()}</Text>
       </View>
 
-      {/* 📝 CONTACT INFO: Name, email, timestamp and unread status */}
+      {/* 📝 CONTACT INFO: Proper two-section layout */}
       <View style={styles.contactContent}>
-        {/* 📊 TOP ROW: Contact name + timestamp */}
-        <View style={styles.nameRow}>
-          <Text style={[styles.name, !contact.isRead && styles.unread]}>
+        {/* 👈 LEFT SECTION: Name and email stacked */}
+        <View style={styles.leftSection}>
+          <Text style={[styles.name, !contact.isRead && styles.unread]} numberOfLines={1}>
             {contact.name}
           </Text>
-          {contact.lastEmailAt && (
-            <Text style={styles.timestamp}>
-              {formatTime(contact.lastEmailAt)}
-            </Text>
-          )}
+          <Text style={styles.email} numberOfLines={1}>
+            {contact.email}
+          </Text>
         </View>
-        {/* 📧 BOTTOM ROW: Email address + unread indicator */}
-        <View style={styles.secondRow}>
-          <Text style={styles.email}>{contact.email}</Text>
-          {!contact.isRead && <View style={styles.unreadDot} />}
+
+        {/* 👉 RIGHT SECTION: Timestamp top, unread dot bottom */}
+        <View style={styles.rightSection}>
+          <View style={styles.timestampContainer}>
+            {contact.lastEmailAt && (
+              <Text style={styles.timestamp}>
+                {formatTime(contact.lastEmailAt)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.unreadContainer}>
+            {!contact.isRead && <View style={styles.unreadDot} />}
+          </View>
         </View>
       </View>
 
@@ -125,43 +132,54 @@ const styles = StyleSheet.create({
   },
   contactContent: {
     flex: 1,
-  },
-  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  leftSection: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  rightSection: {
+    width: 70,
+    height: 44,
     justifyContent: 'space-between',
-    marginBottom: 4,
+    alignItems: 'center',
+  },
+  timestampContainer: {
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  unreadContainer: {
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginRight: -10,
   },
   name: {
     fontSize: 17,
     fontWeight: '600',
     color: colors.textSecondary,
-    flex: 1,
+    marginBottom: 4,
   },
   email: {
     fontSize: 15,
     color: colors.textSecondary,
   },
-  unreadDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.notification,
-    marginLeft: 10,
-  },
-  unread: {
-    fontWeight: '700',
-    color: colors.textSecondary,
-  },
-  secondRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   timestamp: {
     fontSize: 13,
     color: colors.text,
     fontWeight: '400',
+  },
+  unreadDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.notification,
+  },
+  unread: {
+    fontWeight: '700',
+    color: colors.textSecondary,
   },
 })
 
