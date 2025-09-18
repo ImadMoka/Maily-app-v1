@@ -130,6 +130,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_body: {
+        Row: {
+          body_html: string | null
+          body_plain: string | null
+          created_at: string | null
+          email_id: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          body_plain?: string | null
+          created_at?: string | null
+          email_id: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          body_plain?: string | null
+          created_at?: string | null
+          email_id?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_body_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: true
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           account_id: string | null
@@ -222,6 +257,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
             referencedColumns: ["id"]
           },
         ]
