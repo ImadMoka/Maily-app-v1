@@ -27,6 +27,9 @@ export class Email extends Model {
   @field('account_id') accountId?: string
   @field('folder') folder?: string
 
+  // Email classification
+  @field('email_type') emailType?: string
+
   @readonly @date('created_at') createdAt!: Date
   @readonly @date('updated_at') updatedAt!: Date
 }

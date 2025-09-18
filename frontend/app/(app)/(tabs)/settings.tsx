@@ -63,6 +63,17 @@ export default function Settings() {
           </View>
         </View>
 
+        {/* Debug Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Debug</Text>
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={() => router.push('/(app)/debug-email-bodies')}
+          >
+            <Text style={styles.debugButtonText}>View Email Bodies Database</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -148,5 +159,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  debugButton: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  debugButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 })

@@ -75,7 +75,7 @@ BEGIN
 
       'emails', jsonb_build_object(
         -- CREATED RECORDS: Emails created since last sync
-        -- NOW INCLUDING imap_uid and account_id fields
+        -- NOW INCLUDING imap_uid, account_id, and email_type fields
         'created', COALESCE(
           (SELECT jsonb_agg(
             jsonb_build_object(
@@ -92,6 +92,7 @@ BEGIN
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
               'thread_id', e.thread_id,             -- NEW: Added thread reference
+              'email_type', e.email_type,           -- NEW: Added email type
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -104,7 +105,7 @@ BEGIN
         ),
 
         -- UPDATED RECORDS: Existing emails that were modified
-        -- NOW INCLUDING imap_uid and account_id fields
+        -- NOW INCLUDING imap_uid, account_id, and email_type fields
         'updated', COALESCE(
           (SELECT jsonb_agg(
             jsonb_build_object(
@@ -121,6 +122,7 @@ BEGIN
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
               'thread_id', e.thread_id,             -- NEW: Added thread reference
+              'email_type', e.email_type,           -- NEW: Added email type
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -130,6 +132,49 @@ BEGIN
           WHERE ea.user_id = requesting_user_id
             AND e.updated_at > cutoff_time
             AND e.created_at <= cutoff_time),
+          '[]'::jsonb
+        ),
+
+        'deleted', '[]'::jsonb
+      ),
+
+      'email_body', jsonb_build_object(
+        -- CREATED RECORDS: Email bodies created since last sync
+        'created', COALESCE(
+          (SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', eb.id,
+              'email_id', eb.email_id,
+              'body', eb.body,
+              'created_at', timestamp_to_epoch(eb.created_at),
+              'updated_at', timestamp_to_epoch(eb.updated_at)
+            )
+          )
+          FROM email_body eb
+          JOIN emails e ON eb.email_id = e.id
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE ea.user_id = requesting_user_id
+            AND eb.created_at > cutoff_time),
+          '[]'::jsonb
+        ),
+
+        -- UPDATED RECORDS: Existing email bodies that were modified
+        'updated', COALESCE(
+          (SELECT jsonb_agg(
+            jsonb_build_object(
+              'id', eb.id,
+              'email_id', eb.email_id,
+              'body', eb.body,
+              'created_at', timestamp_to_epoch(eb.created_at),
+              'updated_at', timestamp_to_epoch(eb.updated_at)
+            )
+          )
+          FROM email_body eb
+          JOIN emails e ON eb.email_id = e.id
+          JOIN email_accounts ea ON e.account_id = ea.id
+          WHERE ea.user_id = requesting_user_id
+            AND eb.updated_at > cutoff_time
+            AND eb.created_at <= cutoff_time),
           '[]'::jsonb
         ),
 
@@ -215,6 +260,8 @@ DECLARE
   updated_email JSONB;
   new_thread JSONB;
   updated_thread JSONB;
+  new_email_body JSONB;
+  updated_email_body JSONB;
 BEGIN
   -- CREATE CONTACTS (unchanged)
   FOR new_contact IN
@@ -268,7 +315,7 @@ BEGIN
     INSERT INTO emails (
       id, contact_id, message_id, subject, from_address, from_name,
       date_sent, is_read, gmail_thread_id,
-      imap_uid, account_id, folder, thread_id,  -- NEW: Added IMAP fields, folder, and thread_id
+      imap_uid, account_id, folder, thread_id, email_type,  -- NEW: Added IMAP fields, folder, thread_id, and email_type
       created_at, updated_at
     )
     VALUES (
@@ -285,6 +332,7 @@ BEGIN
       NULLIF(new_email->>'account_id', '')::UUID,        -- NEW: Handle account ID
       NULLIF(new_email->>'folder', ''),                  -- NEW: Handle folder
       NULLIF(new_email->>'thread_id', '')::UUID,         -- NEW: Handle thread ID
+      NULLIF(new_email->>'email_type', ''),              -- NEW: Handle email type
       epoch_to_timestamp((new_email->>'created_at')::BIGINT),
       epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
     )
@@ -300,6 +348,7 @@ BEGIN
       account_id = EXCLUDED.account_id,                   -- NEW: Update account ID
       folder = EXCLUDED.folder,                           -- NEW: Update folder
       thread_id = EXCLUDED.thread_id,                     -- NEW: Update thread ID
+      email_type = EXCLUDED.email_type,                   -- NEW: Update email type
       updated_at = EXCLUDED.updated_at
     WHERE EXISTS (
       SELECT 1 FROM email_accounts
@@ -324,6 +373,7 @@ BEGIN
       account_id = NULLIF(updated_email->>'account_id', '')::UUID,   -- NEW: Update account ID
       folder = NULLIF(updated_email->>'folder', ''),                 -- NEW: Update folder
       thread_id = NULLIF(updated_email->>'thread_id', '')::UUID,     -- NEW: Update thread ID
+      email_type = NULLIF(updated_email->>'email_type', ''),         -- NEW: Update email type
       updated_at = epoch_to_timestamp((updated_email->>'updated_at')::BIGINT)
     WHERE id = (updated_email->>'id')::UUID
       AND EXISTS (
@@ -423,6 +473,61 @@ BEGIN
       SELECT 1 FROM contacts c
       WHERE c.id = threads.contact_id
       AND c.user_id = requesting_user_id
+    );
+
+  -- CREATE EMAIL BODIES
+  FOR new_email_body IN
+    SELECT jsonb_array_elements(changes->'email_body'->'created')
+  LOOP
+    INSERT INTO email_body (
+      id, email_id, body,
+      created_at, updated_at
+    )
+    VALUES (
+      (new_email_body->>'id')::UUID,
+      (new_email_body->>'email_id')::UUID,
+      new_email_body->>'body',
+      epoch_to_timestamp((new_email_body->>'created_at')::BIGINT),
+      epoch_to_timestamp((new_email_body->>'updated_at')::BIGINT)
+    )
+    ON CONFLICT (email_id) DO UPDATE SET
+      body = EXCLUDED.body,
+      updated_at = EXCLUDED.updated_at
+    WHERE EXISTS (
+      SELECT 1 FROM emails e
+      JOIN email_accounts ea ON e.account_id = ea.id
+      WHERE e.id = EXCLUDED.email_id
+      AND ea.user_id = requesting_user_id
+    );
+  END LOOP;
+
+  -- UPDATE EMAIL BODIES
+  FOR updated_email_body IN
+    SELECT jsonb_array_elements(changes->'email_body'->'updated')
+  LOOP
+    UPDATE email_body SET
+      body = updated_email_body->>'body',
+      updated_at = epoch_to_timestamp((updated_email_body->>'updated_at')::BIGINT)
+    WHERE email_id = (updated_email_body->>'email_id')::UUID
+      AND EXISTS (
+        SELECT 1 FROM emails e
+        JOIN email_accounts ea ON e.account_id = ea.id
+        WHERE e.id = email_body.email_id
+        AND ea.user_id = requesting_user_id
+      );
+  END LOOP;
+
+  -- DELETE EMAIL BODIES
+  WITH deleted_email_bodies AS (
+    SELECT jsonb_array_elements_text(changes->'email_body'->'deleted')::UUID AS deleted_id
+  )
+  DELETE FROM email_body
+  WHERE email_body.id IN (SELECT deleted_id FROM deleted_email_bodies)
+    AND EXISTS (
+      SELECT 1 FROM emails e
+      JOIN email_accounts ea ON e.account_id = ea.id
+      WHERE e.id = email_body.email_id
+      AND ea.user_id = requesting_user_id
     );
 END;
 $$ LANGUAGE plpgsql;

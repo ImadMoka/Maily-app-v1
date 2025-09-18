@@ -37,6 +37,7 @@ async function sync() {
             changes: {
               contacts: { created: [], updated: [], deleted: [] },
               emails: { created: [], updated: [], deleted: [] },
+              email_body: { created: [], updated: [], deleted: [] },
               threads: { created: [], updated: [], deleted: [] }
             },
             timestamp: Date.now()

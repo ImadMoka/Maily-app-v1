@@ -5,6 +5,7 @@ import { setGenerator } from '@nozbe/watermelondb/utils/common/randomId'
 import { schema } from './schema'
 import { Contact } from './models/Contact'
 import { Email } from './models/Email'
+import { EmailBody } from './models/EmailBody'
 import { Thread } from './models/Thread'
 import ImapSyncQueue from './models/ImapSyncQueue'
 
@@ -19,7 +20,7 @@ export function generateUUID(): string {
 }
 
 // 🚀 DATABASE INITIALIZATION: Creates the local LokiJS database instance (Expo compatible)
-const adapter = new LokiJSAdapter({ 
+const adapter = new LokiJSAdapter({
   schema,                    // The schema defined above
   useWebWorker: false,       // Disable web worker for React Native
   useIncrementalIndexedDB: true, // Better performance
@@ -32,7 +33,7 @@ setGenerator(() => generateUUID())
 // 🌍 GLOBAL DATABASE INSTANCE: This is what your app components will use
 export const database = new Database({
   adapter,                // SQLite adapter with our schema
-  modelClasses: [Contact, Email, Thread, ImapSyncQueue] // Register our model classes
+  modelClasses: [Contact, Email, EmailBody, Thread, ImapSyncQueue] // Register our model classes
 })
 
 // ✅ UUID GENERATION: Now WatermelonDB automatically uses our UUID generator
