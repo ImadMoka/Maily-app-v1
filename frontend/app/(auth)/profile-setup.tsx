@@ -22,7 +22,7 @@ export default function ProfileSetup() {
     if (error) {
       Alert.alert('Error', error.message)
     } else {
-      router.replace('/(app)')
+      router.replace('/(app)/(tabs)')
     }
     setLoading(false)
   }

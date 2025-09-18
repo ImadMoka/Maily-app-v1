@@ -10,7 +10,14 @@ export default function AppLayout() {
     // screenOptions = Global options for all child screens
     // headerShown: false = Hides navigation headers for clean UI
     <Stack screenOptions={{ headerShown: false }}>
-      {/* Expo Router auto-discovers screens based on file structure */}
+      {/* Main tabs with mail and settings */}
+      <Stack.Screen name="(tabs)" />
+      {/* Other screens */}
+      <Stack.Screen name="setup/email-setup" />
+      <Stack.Screen name="setup/email-setup-step2" />
+      <Stack.Screen name="contacts/contact-emails" />
+      <Stack.Screen name="contacts/contact-threads" />
+      <Stack.Screen name="threads/thread-emails" />
     </Stack>
   )
 }

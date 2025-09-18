@@ -1,12 +1,12 @@
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useState, useEffect } from 'react';
-import { colors } from '../../src/constants';
-import { supabase } from '../../src/lib/supabase';
+import { colors } from '../../../src/constants';
+import { supabase } from '../../../src/lib/supabase';
 import { router } from 'expo-router';
-import { useSession } from '../../src/context/SessionContext';
-import ContactsList from '../../src/components/contacts/ContactsList'; // Updated path for reorganized components
-import { startAutoSync } from '../../src/database/sync';
-import { imapSyncService } from '../../src/services/ImapSyncService';
+import { useSession } from '../../../src/context/SessionContext';
+import ContactsList from '../../../src/components/contacts/ContactsList'; // Updated path for reorganized components
+import { startAutoSync } from '../../../src/database/sync';
+import { imapSyncService } from '../../../src/services/ImapSyncService';
 
 export default function Index() {
   const [accounts, setAccounts] = useState<any[] | null>(null)
@@ -81,13 +81,6 @@ export default function Index() {
         )}
       </View>
 
-      {/* Separator Line */}
-      <View style={styles.separator} />
-
-      {/* Bottom Tabs Section */}
-      <View style={styles.tabsSection}>
-        <Text style={styles.tabsPlaceholder}>Tabs will be here</Text>
-      </View>
     </View>
   );
 }
@@ -187,20 +180,5 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
     letterSpacing: 0.5,
-  },
-  tabsSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 80,
-    backgroundColor: colors.secondary,
-    opacity: 0.3,
-  },
-  tabsPlaceholder: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '500',
-    opacity: 0.7,
   },
 });

@@ -19,7 +19,7 @@ export default function EmailSetup() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)')}>
+      <TouchableOpacity style={styles.closeButton} onPress={() => router.push('/(app)/(tabs)')}>
         <Text style={styles.closeText}>✕</Text>
       </TouchableOpacity>
       <Text style={styles.stepTitle}>Step 1</Text>
