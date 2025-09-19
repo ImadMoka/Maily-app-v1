@@ -16,6 +16,11 @@ Bun.serve({
       return await accountRoutes.handleGetAccounts(req)
     }
 
+    // Delete account endpoint - matches /api/accounts/{id}
+    if (url.pathname.startsWith('/api/accounts/') && req.method === 'DELETE') {
+      return await accountRoutes.handleDeleteAccount(req)
+    }
+
     // IMAP sync endpoint - mark email as read
     if (url.pathname === '/api/imap/mark-read' && req.method === 'POST') {
       return await imapSyncRoutes.handleMarkAsRead(req)

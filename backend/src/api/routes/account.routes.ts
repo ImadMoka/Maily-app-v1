@@ -116,9 +116,43 @@ export class AccountRoutes {
       const accounts = await this.accountService.getUserAccounts(userClient, user.id)
 
       return Response.json({ accounts })
-      
+
     } catch (error) {
       return Response.json({ error: 'Failed to get accounts' }, { status: 500 })
+    }
+  }
+
+  async handleDeleteAccount(request: Request): Promise<Response> {
+    const url = new URL(request.url)
+    const pathParts = url.pathname.split('/')
+    const accountId = pathParts[pathParts.length - 1]
+
+    try {
+      const authHeader = request.headers.get('Authorization')
+
+      if (!authHeader) {
+        return Response.json({ error: 'Authorization header required' }, { status: 401 })
+      }
+
+      const { user, token } = await AuthUtils.validateToken(authHeader)
+
+      if (!accountId) {
+        return Response.json({ error: 'Account ID required' }, { status: 400 })
+      }
+
+      const userClient = AuthUtils.createUserClient(token)
+
+      await this.accountService.deleteAccount(userClient, accountId, user.id)
+
+      return Response.json({
+        success: true,
+        message: 'Account disconnected successfully'
+      })
+
+    } catch (error) {
+      return Response.json({
+        error: error instanceof Error ? error.message : 'Failed to disconnect account'
+      }, { status: 500 })
     }
   }
 

@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native'
-import { useState } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, ActivityIndicator } from 'react-native'
+import { useState, useEffect } from 'react'
 import { router } from 'expo-router'
 import { colors } from '../../../src/constants'
 import { supabase } from '../../../src/lib/supabase'
@@ -7,7 +7,76 @@ import { useSession } from '../../../src/context/SessionContext'
 
 export default function Settings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [emailAccounts, setEmailAccounts] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState<string | null>(null)
   const { session } = useSession()
+
+  useEffect(() => {
+    fetchEmailAccounts()
+  }, [])
+
+  async function fetchEmailAccounts() {
+    if (!session?.access_token) return
+
+    setLoading(true)
+    try {
+      const response = await fetch('http://localhost:3000/api/accounts', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setEmailAccounts(data.accounts || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch email accounts:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDisconnectAccount(accountId: string, email: string) {
+    Alert.alert(
+      'Disconnect Email Account',
+      `Are you sure you want to disconnect ${email}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: async () => {
+            if (!session?.access_token) return
+
+            setDeleting(accountId)
+            try {
+              const response = await fetch(`http://localhost:3000/api/accounts/${accountId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+                }
+              })
+
+              if (response.ok) {
+                setEmailAccounts(prev => prev.filter(acc => acc.id !== accountId))
+                Alert.alert('Success', 'Email account disconnected successfully')
+              } else {
+                const errorData = await response.json()
+                console.error('Disconnect error:', errorData)
+                Alert.alert('Error', errorData.error || 'Failed to disconnect email account')
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Network error while disconnecting account')
+            } finally {
+              setDeleting(null)
+            }
+          }
+        }
+      ]
+    )
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -25,7 +94,7 @@ export default function Settings() {
       <View style={styles.separator} />
 
       {/* Settings Content */}
-      <View style={styles.contentSection}>
+      <ScrollView style={styles.contentSection}>
 
         {/* Account Info Section */}
         <View style={styles.section}>
@@ -38,6 +107,54 @@ export default function Settings() {
             <Text style={styles.settingLabel}>Name</Text>
             <Text style={styles.settingValue}>{session?.user?.user_metadata?.display_name || 'Not set'}</Text>
           </View>
+        </View>
+
+        {/* Connected Email Accounts Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Connected Email Accounts</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : emailAccounts.length > 0 ? (
+            <>
+              {emailAccounts.map(account => (
+                <View key={account.id} style={styles.emailAccountItem}>
+                  <View style={styles.emailAccountInfo}>
+                    <Text style={styles.emailAccountEmail}>{account.email}</Text>
+                    <Text style={styles.emailAccountStatus}>
+                      {account.is_active ? '✓ Active' : '⚠ Inactive'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.disconnectButton}
+                    onPress={() => handleDisconnectAccount(account.id, account.email)}
+                    disabled={deleting === account.id}
+                  >
+                    {deleting === account.id ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <Text style={styles.disconnectButtonText}>Disconnect</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={styles.addAnotherAccountButton}
+                onPress={() => router.push('/(app)/setup/email-setup')}
+              >
+                <Text style={styles.addAnotherAccountButtonText}>+ Add Another Account</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.noAccountsContainer}>
+              <Text style={styles.noAccountsText}>No email accounts connected</Text>
+              <TouchableOpacity
+                style={styles.connectAccountButton}
+                onPress={() => router.push('/(app)/setup/email-setup')}
+              >
+                <Text style={styles.connectAccountButtonText}>Connect Email Account</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Notifications Section */}
@@ -78,7 +195,7 @@ export default function Settings() {
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   )
 }
@@ -173,5 +290,77 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  emailAccountItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  emailAccountInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  emailAccountEmail: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  emailAccountStatus: {
+    fontSize: 12,
+    color: colors.primary,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  disconnectButton: {
+    backgroundColor: '#ff4444',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  disconnectButtonText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  noAccountsContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noAccountsText: {
+    fontSize: 14,
+    color: colors.primary,
+    opacity: 0.6,
+    marginBottom: 12,
+  },
+  connectAccountButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  connectAccountButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  addAnotherAccountButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignSelf: 'center',
+    marginTop: 16,
+  },
+  addAnotherAccountButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 })

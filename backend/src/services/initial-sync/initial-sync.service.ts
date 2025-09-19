@@ -52,11 +52,12 @@ export class InitialSyncService {
 
       // 2. Extract and save contacts first
       const contacts = this.contactService.extractContactsFromEmails(emails, new Map())
-      
+
       if (contacts.length > 0) {
         const contactResult = await this.contactService.saveContactsWithRelationships(
           userClient,
           userId,
+          accountId,  // Pass accountId to link contacts to this account
           contacts
         )
         
