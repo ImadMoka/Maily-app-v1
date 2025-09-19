@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_accounts: {
+        Row: {
+          account_id: string
+          contact_id: string
+        }
+        Insert: {
+          account_id: string
+          contact_id: string
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_accounts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           created_at: string | null

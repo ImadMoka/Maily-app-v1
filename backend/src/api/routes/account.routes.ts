@@ -156,5 +156,55 @@ export class AccountRoutes {
     }
   }
 
+  // Delete ALL accounts for the authenticated user
+  async handleDeleteAllAccounts(request: Request): Promise<Response> {
+    try {
+      const authHeader = request.headers.get('Authorization')
+
+      if (!authHeader) {
+        return Response.json({ error: 'Authorization header required' }, { status: 401 })
+      }
+
+      const { user, token } = await AuthUtils.validateToken(authHeader)
+      const userClient = AuthUtils.createUserClient(token)
+
+      // Get all user's accounts
+      const accounts = await this.accountService.getUserAccounts(userClient, user.id)
+
+      if (accounts.length === 0) {
+        return Response.json({
+          success: true,
+          message: 'No accounts to delete',
+          deletedCount: 0
+        })
+      }
+
+      // Delete all accounts
+      const results = await Promise.allSettled(
+        accounts.map(account =>
+          this.accountService.deleteAccount(userClient, account.id, user.id)
+        )
+      )
+
+      // Count successes and failures
+      const succeeded = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.filter(r => r.status === 'rejected').length
+
+      return Response.json({
+        success: true,
+        message: `Deleted ${succeeded} accounts`,
+        deletedCount: succeeded,
+        failedCount: failed,
+        totalAccounts: accounts.length
+      })
+
+    } catch (error) {
+      console.error('Failed to delete all accounts:', error)
+      return Response.json({
+        error: error instanceof Error ? error.message : 'Failed to delete all accounts'
+      }, { status: 500 })
+    }
+  }
+
 }
 
