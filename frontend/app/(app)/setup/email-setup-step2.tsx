@@ -5,7 +5,7 @@ import { useSession } from '../../../src/context/SessionContext'
 import { colors } from '../../../src/constants'
 
 export default function EmailSetupStep2() {
-  const [appPassword, setAppPassword] = useState('')
+  const [appPassword, setAppPassword] = useState('jfjlwpdfoxmfiiew')
   const [loading, setLoading] = useState(false)
   const { email } = useLocalSearchParams()
   const { session } = useSession()

@@ -1,5 +1,7 @@
 const Imap = require('node-imap')
+import { simpleParser } from 'mailparser'
 import { type ImapConnectionConfig, type ImapVerificationResult, type FetchEmailsResult, type EmailMessage, type EmailAddress } from './imap.types'
+import { ContentDetector, type DetectionResult } from '../content/content-detector'
 
 /**
  * Simplified IMAP service - direct and minimal
@@ -113,7 +115,7 @@ export class ImapService {
                     // Simple email object construction
                     emails.push({
                       uid: emailData.uid,
-                      messageId: emailData.envelope.messageId || '',
+                      messageId: emailData.envelope.messageId || undefined,
                       subject: emailData.envelope.subject || 'No Subject',
                       from: this.extractAddress(emailData.envelope.from?.[0]),
                       to: (emailData.envelope.to || []).map((a: any) => this.extractAddress(a)),
@@ -227,5 +229,128 @@ export class ImapService {
       )
     }
     return struct.disposition?.type?.toLowerCase() === 'attachment'
+  }
+
+  /**
+   * Fetch email bodies for specific emails
+   * Adapts the working logic from imap-fetch-complete-parsed.js
+   */
+  async fetchEmailBodies(
+    config: ImapConnectionConfig,
+    emails: Array<{uid: number, messageId: string, emailId: string}>
+  ): Promise<Map<string, { content: string; metadata: DetectionResult }>> {
+    return new Promise((resolve) => {
+      const imap = this.createConnection(config)
+      const bodiesWithMetadata = new Map<string, { content: string; metadata: DetectionResult }>()
+      const contentDetector = new ContentDetector()
+
+      imap.once('ready', () => {
+        // Try both common Gmail folder paths
+        const tryFolders = ['[Gmail]/All Mail', '[Gmail]/Alle Nachrichten']
+
+        const tryNextFolder = (index: number) => {
+          if (index >= tryFolders.length) {
+            imap.end()
+            resolve(bodiesWithMetadata) // Return what we got
+            return
+          }
+
+          imap.openBox(tryFolders[index], true, (err: any) => {
+            if (err) {
+              tryNextFolder(index + 1)
+              return
+            }
+
+            // Extract UIDs from the emails array
+            const uids = emails.map(e => e.uid)
+
+            if (uids.length === 0) {
+              imap.end()
+              resolve(bodiesWithMetadata)
+              return
+            }
+
+            // Fetch complete message bodies using empty string for RFC822
+            const fetch = imap.fetch(uids, {
+              bodies: '', // This fetches the complete RFC822 message
+              struct: false
+            })
+
+            const messagePromises: Promise<void>[] = []
+
+            fetch.on('message', (msg: any, seqno: number) => {
+              let uid: number
+              const chunks: Buffer[] = []
+
+              msg.on('attributes', (attrs: any) => {
+                uid = attrs.uid
+              })
+
+              msg.on('body', (stream: NodeJS.ReadableStream) => {
+                stream.on('data', (chunk: Buffer) => {
+                  chunks.push(chunk)
+                })
+              })
+
+              msg.on('end', () => {
+                const emailInfo = emails.find(e => e.uid === uid)
+                if (!emailInfo) return
+
+                const messagePromise = (async () => {
+                  try {
+                    const buffer = Buffer.concat(chunks)
+                    // Parse the raw email using mailparser
+                    const parsed = await simpleParser(buffer)
+
+                    // Prefer HTML content, fallback to text
+                    const content = parsed.html || parsed.text || ''
+
+                    // Detect content type and metadata
+                    const mimeType = parsed.html ? 'text/html' : 'text/plain'
+                    const metadata = contentDetector.detect(content, mimeType)
+
+                    bodiesWithMetadata.set(emailInfo.emailId, {
+                      content,
+                      metadata
+                    })
+                  } catch (error) {
+                    console.error(`Error parsing email ${uid}:`, error)
+                    // Still add an empty entry so we know we tried
+                    bodiesWithMetadata.set(emailInfo.emailId, {
+                      content: '',
+                      metadata: contentDetector.detect('', 'text/plain')
+                    })
+                  }
+                })()
+
+                messagePromises.push(messagePromise)
+              })
+            })
+
+            fetch.once('end', async () => {
+              // Wait for all parsing to complete
+              await Promise.all(messagePromises)
+              imap.end()
+              resolve(bodiesWithMetadata)
+            })
+
+            fetch.once('error', (err: any) => {
+              console.error('Fetch error:', err)
+              imap.end()
+              resolve(bodiesWithMetadata) // Return what we got
+            })
+          })
+        }
+
+        tryNextFolder(0)
+      })
+
+      imap.once('error', (error: Error) => {
+        console.error('IMAP connection error:', error)
+        resolve(bodiesWithMetadata) // Return empty map on error
+      })
+
+      imap.connect()
+    })
   }
 }

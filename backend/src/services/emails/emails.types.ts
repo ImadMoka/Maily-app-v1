@@ -3,5 +3,6 @@ export interface SaveEmailsResult {
     saved: number
     skipped: number
     errors: string[]
+    savedEmails?: any[]
   }
   

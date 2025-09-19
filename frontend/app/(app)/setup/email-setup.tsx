@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { colors } from '../../../src/constants'
 
 export default function EmailSetup() {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('imadmokadem19@gmail.com')
 
   function handleContinue() {
     if (!email.includes('@gmail.com')) {

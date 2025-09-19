@@ -96,6 +96,7 @@ export class ContactService {
   async saveContactsWithRelationships(
     userClient: SupabaseClient<Database>,
     userId: string,
+    accountId: string,  // Added accountId parameter
     contacts: ProcessedContact[]
   ): Promise<ContactProcessingResult> {
     if (contacts.length === 0) {
@@ -120,7 +121,7 @@ export class ContactService {
       const { data, error } = await userClient
         .from('contacts')
         .upsert(contactsData, { onConflict: 'user_id,email', ignoreDuplicates: false })
-        .select('id')
+        .select('id, email')
 
       if (error) {
         console.error('Failed to save contacts:', error)
@@ -129,6 +130,18 @@ export class ContactService {
           saved: 0,
           errors: [error.message]
         }
+      }
+
+      // Create contact-account associations
+      if (data && data.length > 0) {
+        const contactAccountsData = data.map(contact => ({
+          contact_id: contact.id,
+          account_id: accountId
+        }))
+
+        await userClient
+          .from('contact_accounts')
+          .upsert(contactAccountsData, { onConflict: 'contact_id,account_id', ignoreDuplicates: true })
       }
 
       return {

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_accounts: {
+        Row: {
+          account_id: string
+          contact_id: string
+        }
+        Insert: {
+          account_id: string
+          contact_id: string
+        }
+        Update: {
+          account_id?: string
+          contact_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_accounts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_accounts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           created_at: string | null
@@ -130,6 +160,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_body: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          email_id: string
+          email_type: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          email_id: string
+          email_type?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          email_id?: string
+          email_type?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_body_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: true
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           account_id: string | null
@@ -222,6 +287,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
             referencedColumns: ["id"]
           },
         ]

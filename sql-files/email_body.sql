@@ -21,11 +21,8 @@ CREATE TABLE email_body (
     -- EMAIL CONTENT
     -- =============================================================
 
-    -- Plain text version of email body
-    body_plain TEXT,
-
-    -- HTML version of email body
-    body_html TEXT,
+    -- Email body
+    body TEXT,
 
     -- =============================================================
     -- SYNC AND AUDIT TRACKING
@@ -93,3 +90,10 @@ CREATE POLICY "Users can access own email bodies"
             WHERE ea.user_id = auth.uid()
         )
     );
+
+-- =================================================================
+-- ___UPDATES (2025-09-19 15:09:15)___
+-- =================================================================
+
+-- Move email_type from emails table to email_body table
+ALTER TABLE email_body ADD COLUMN IF NOT EXISTS email_type TEXT;

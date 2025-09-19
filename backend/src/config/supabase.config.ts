@@ -1,7 +1,7 @@
 export const supabaseConfig = {
   url: process.env.SUPABASE_URL!,
   anonKey: process.env.SUPABASE_ANON_KEY!,
-  serviceKey: process.env.SUPABASE_SERVICE_KEY!,
+  serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
   options: {
     auth: {
       autoRefreshToken: false,
@@ -15,6 +15,6 @@ if (!supabaseConfig.url || !supabaseConfig.anonKey) {
 }
 
 if (!supabaseConfig.serviceKey) {
-  console.warn('Warning: SUPABASE_SERVICE_KEY not found. Admin operations will be limited.')
+  console.warn('Warning: SUPABASE_SERVICE_ROLE_KEY not found. Admin operations will be limited.')
 }
 

@@ -33,8 +33,7 @@ export class InitialSyncService {
       // 1. Fetch emails from IMAP (single fetch)
       const emailResult = await this.imapService.fetchRecentEmails(
         imapConfig,
-        200, // Initial sync gets 200 emails
-        { userId, accountId }
+        200 // Initial sync gets 200 emails
       )
 
       if (!emailResult.success || !emailResult.emails?.length) {
@@ -52,11 +51,12 @@ export class InitialSyncService {
 
       // 2. Extract and save contacts first
       const contacts = this.contactService.extractContactsFromEmails(emails, new Map())
-      
+
       if (contacts.length > 0) {
         const contactResult = await this.contactService.saveContactsWithRelationships(
           userClient,
           userId,
+          accountId,  // Pass accountId to link contacts to this account
           contacts
         )
         
@@ -71,9 +71,49 @@ export class InitialSyncService {
         userId,
         emails
       )
-      
+
       emailsProcessed = emailSaveResult.saved + emailSaveResult.skipped
       errors.push(...emailSaveResult.errors)
+
+      // 4. Fetch and save email bodies for saved emails
+      if (emailSaveResult.savedEmails && emailSaveResult.savedEmails.length > 0) {
+        try {
+          console.log(`📨 Fetching bodies for ${emailSaveResult.savedEmails.length} emails...`)
+
+          // Check which emails don't have bodies yet
+          const emailIds = emailSaveResult.savedEmails.map(e => e.id)
+          const { data: existingBodies } = await userClient
+            .from('email_body')
+            .select('email_id')
+            .in('email_id', emailIds)
+
+          const emailsNeedingBodies = emailSaveResult.savedEmails.filter(
+            e => !existingBodies?.find(b => b.email_id === e.id)
+          )
+
+          if (emailsNeedingBodies.length > 0) {
+            // Prepare email info for body fetching
+            const emailInfo = emailsNeedingBodies.map(e => ({
+              uid: e.uid,
+              messageId: e.message_id,
+              emailId: e.id
+            }))
+
+            // Fetch bodies from IMAP
+            const bodiesWithMetadata = await this.imapService.fetchEmailBodies(
+              imapConfig,
+              emailInfo
+            )
+
+            // Save bodies to database
+            await this.emailService.saveEmailBodies(userClient, bodiesWithMetadata)
+            console.log(`💾 Saved ${bodiesWithMetadata.size} email bodies`)
+          }
+        } catch (error) {
+          console.error('❌ Error fetching email bodies:', error)
+          errors.push(`Body fetch error: ${error instanceof Error ? error.message : 'Unknown'}`)
+        }
+      }
 
       console.log(`✅ Initial sync completed: ${emailsProcessed} emails, ${contactsProcessed} contacts, ${errors.length} errors`)
 
