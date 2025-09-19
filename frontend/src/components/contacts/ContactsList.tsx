@@ -24,9 +24,8 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
     )
     .observe()                                  // 🔔 Make it observable for list changes!
 }))(({ contacts, userId }: { contacts: Contact[], userId: string }) => {
-  // 📝 LOCAL STATE: For form visibility and editing
+  // 📝 LOCAL STATE: For form visibility
   const [showForm, setShowForm] = useState(false)
-  const [editingContact, setEditingContact] = useState<Contact | null>(null)
   // 🔍 SEARCH STATE: Remembers what user types in search box
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -61,32 +60,9 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
     // 🎯 UI UPDATES AUTOMATICALLY! The observable query will detect this change
   }
 
-  // ✏️ EDIT OPERATION: Update existing contact
-  const updateContact = async (contactData: { name: string; email: string }) => {
-    if (!editingContact) return
-
-    // 🔒 DATABASE WRITE: Wrap modifications in write transaction
-    await database.write(async () => {
-      await editingContact.update(() => {
-        editingContact.name = contactData.name.trim()
-        editingContact.email = contactData.email.trim().toLowerCase()
-        // 💡 updated_at timestamp is automatically updated!
-      })
-    })
-    setEditingContact(null)  // Clear editing state
-    // 🎯 UI UPDATES AUTOMATICALLY! The observable detects the change
-  }
-
-
-  // Handle edit button press
-  const handleEdit = (contact: Contact) => {
-    setEditingContact(contact)
-  }
-
-  // Cancel form/editing
+  // Cancel form
   const handleCancel = () => {
     setShowForm(false)
-    setEditingContact(null)
   }
 
   // 🎨 UI RENDERING: Notice how we use the reactive `contacts` prop
@@ -97,11 +73,10 @@ const ContactsList = withObservables(['userId'], ({ userId }) => ({
         <Text style={styles.title}>Contacts</Text>
       </View>
 
-      {/* 📝 ADD/EDIT CONTACT FORM */}
-      {(showForm || editingContact) && (
+      {/* 📝 ADD CONTACT FORM */}
+      {showForm && (
         <ContactForm
-          contact={editingContact}
-          onSave={editingContact ? updateContact : createContact}
+          onSave={createContact}
           onCancel={handleCancel}
         />
       )}

@@ -1,33 +1,20 @@
-// 📝 CONTACT FORM COMPONENT: Add/Edit contact form
+// 📝 CONTACT FORM COMPONENT: Add contact form
 // Similar to the todo input form but with name and email fields
-// Handles both creation and editing modes
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
-import { Contact } from '../../database/models/Contact' // Updated path since we're now in contacts/ subfolder
-import { colors } from '../../constants' // Updated path since we're now in contacts/ subfolder
+import { colors } from '../../constants'
 
 interface ContactFormProps {
-  contact?: Contact | null  // If provided, we're editing; if null, we're creating
   onSave: (contactData: { name: string; email: string }) => void
   onCancel: () => void
 }
 
-export default function ContactForm({ contact, onSave, onCancel }: ContactFormProps) {
+export default function ContactForm({ onSave, onCancel }: ContactFormProps) {
   // 📝 LOCAL STATE: Form inputs (like newTodo in your todo app)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
 
-  // 🔄 POPULATE FORM: When editing, fill form with existing contact data
-  useEffect(() => {
-    if (contact) {
-      setName(contact.name)
-      setEmail(contact.email)
-    } else {
-      setName('')
-      setEmail('')
-    }
-  }, [contact])
 
   // ✅ FORM VALIDATION: Simple email validation
   const isValidEmail = (email: string) => {
@@ -39,7 +26,7 @@ export default function ContactForm({ contact, onSave, onCancel }: ContactFormPr
     return name.trim().length > 0 && email.trim().length > 0 && isValidEmail(email.trim())
   }
 
-  // 💾 SAVE HANDLER: Create or update contact
+  // 💾 SAVE HANDLER: Create contact
   const handleSave = () => {
     if (!isFormValid()) return
 
@@ -47,8 +34,8 @@ export default function ContactForm({ contact, onSave, onCancel }: ContactFormPr
       name: name.trim(),
       email: email.trim()
     })
-    
-    // Clear form after saving (like clearing newTodo)
+
+    // Clear form after saving
     setName('')
     setEmail('')
   }
@@ -57,7 +44,7 @@ export default function ContactForm({ contact, onSave, onCancel }: ContactFormPr
   return (
     <View style={styles.container}>
       <Text style={styles.title}>
-        {contact ? 'Edit Contact' : 'Add Contact'}
+        Add Contact
       </Text>
 
       {/* 👤 NAME INPUT */}
@@ -103,7 +90,7 @@ export default function ContactForm({ contact, onSave, onCancel }: ContactFormPr
           disabled={!isFormValid()}
         >
           <Text style={[styles.saveText, !isFormValid() && styles.saveTextDisabled]}>
-            {contact ? 'Update' : 'Add'}
+            Add
           </Text>
         </TouchableOpacity>
       </View>

@@ -1,6 +1,7 @@
 import { database } from '../database'
 import { Thread } from '../database/models/Thread'
 import { Email } from '../database/models/Email'
+import { Contact } from '../database/models/Contact'
 import { Q } from '@nozbe/watermelondb'
 import { syncNow } from '../database/sync'
 import { imapSyncService } from './ImapSyncService'
@@ -18,10 +19,38 @@ export const markThreadAsRead = async (thread: Thread) => {
     })
   })
 
+  // Update contact read status if all threads are now read
+  await updateContactReadStatus(thread.contactId)
+
   console.log('📬 Thread marked as read:', thread.subject)
 
   // Sync to Supabase after a short delay
   setTimeout(() => syncNow(), 100)
+}
+
+/**
+ * Update contact read status - MVP implementation
+ * Checks if all threads for contact are read, updates Contact.isRead accordingly
+ */
+const updateContactReadStatus = async (contactId: string) => {
+  const hasUnreadThreads = await database.collections
+    .get<Thread>('threads')
+    .query(Q.where('contact_id', contactId), Q.where('is_read', false))
+    .fetchCount()
+
+  const contact = await database.collections
+    .get<Contact>('contacts')
+    .find(contactId)
+
+  const shouldBeRead = hasUnreadThreads === 0
+
+  if (contact.isRead !== shouldBeRead) {
+    await database.write(async () => {
+      await contact.update((c) => {
+        c.isRead = shouldBeRead
+      })
+    })
+  }
 }
 
 /**
