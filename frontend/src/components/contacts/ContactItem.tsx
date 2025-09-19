@@ -79,10 +79,10 @@ const ContactItem = withObservables(['contact'], ({ contact }) => ({
         {/* 👈 LEFT SECTION: Name and email stacked */}
         <View style={styles.leftSection}>
           <Text style={[styles.name, !contact.isRead && styles.unread]} numberOfLines={1}>
-            {contact.name}
+            {contact.name || contact.email}
           </Text>
           <Text style={styles.email} numberOfLines={1}>
-            {contact.email}
+
           </Text>
         </View>
 
