@@ -92,7 +92,6 @@ BEGIN
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
               'thread_id', e.thread_id,             -- NEW: Added thread reference
-              'email_type', e.email_type,           -- NEW: Added email type
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -122,7 +121,6 @@ BEGIN
               'account_id', e.account_id,          -- NEW: Added account ID
               'folder', e.folder,                   -- NEW: Added folder field
               'thread_id', e.thread_id,             -- NEW: Added thread reference
-              'email_type', e.email_type,           -- NEW: Added email type
               'created_at', timestamp_to_epoch(e.created_at),
               'updated_at', timestamp_to_epoch(e.updated_at)
             )
@@ -146,6 +144,7 @@ BEGIN
               'id', eb.id,
               'email_id', eb.email_id,
               'body', eb.body,
+              'email_type', eb.email_type,
               'created_at', timestamp_to_epoch(eb.created_at),
               'updated_at', timestamp_to_epoch(eb.updated_at)
             )
@@ -165,6 +164,7 @@ BEGIN
               'id', eb.id,
               'email_id', eb.email_id,
               'body', eb.body,
+              'email_type', eb.email_type,
               'created_at', timestamp_to_epoch(eb.created_at),
               'updated_at', timestamp_to_epoch(eb.updated_at)
             )
@@ -315,7 +315,7 @@ BEGIN
     INSERT INTO emails (
       id, contact_id, message_id, subject, from_address, from_name,
       date_sent, is_read, gmail_thread_id,
-      imap_uid, account_id, folder, thread_id, email_type,  -- NEW: Added IMAP fields, folder, thread_id, and email_type
+      imap_uid, account_id, folder, thread_id,  -- NEW: Added IMAP fields, folder, and thread_id
       created_at, updated_at
     )
     VALUES (
@@ -332,7 +332,6 @@ BEGIN
       NULLIF(new_email->>'account_id', '')::UUID,        -- NEW: Handle account ID
       NULLIF(new_email->>'folder', ''),                  -- NEW: Handle folder
       NULLIF(new_email->>'thread_id', '')::UUID,         -- NEW: Handle thread ID
-      NULLIF(new_email->>'email_type', ''),              -- NEW: Handle email type
       epoch_to_timestamp((new_email->>'created_at')::BIGINT),
       epoch_to_timestamp((new_email->>'updated_at')::BIGINT)
     )
@@ -348,7 +347,6 @@ BEGIN
       account_id = EXCLUDED.account_id,                   -- NEW: Update account ID
       folder = EXCLUDED.folder,                           -- NEW: Update folder
       thread_id = EXCLUDED.thread_id,                     -- NEW: Update thread ID
-      email_type = EXCLUDED.email_type,                   -- NEW: Update email type
       updated_at = EXCLUDED.updated_at
     WHERE EXISTS (
       SELECT 1 FROM email_accounts
@@ -373,7 +371,6 @@ BEGIN
       account_id = NULLIF(updated_email->>'account_id', '')::UUID,   -- NEW: Update account ID
       folder = NULLIF(updated_email->>'folder', ''),                 -- NEW: Update folder
       thread_id = NULLIF(updated_email->>'thread_id', '')::UUID,     -- NEW: Update thread ID
-      email_type = NULLIF(updated_email->>'email_type', ''),         -- NEW: Update email type
       updated_at = epoch_to_timestamp((updated_email->>'updated_at')::BIGINT)
     WHERE id = (updated_email->>'id')::UUID
       AND EXISTS (
@@ -480,18 +477,20 @@ BEGIN
     SELECT jsonb_array_elements(changes->'email_body'->'created')
   LOOP
     INSERT INTO email_body (
-      id, email_id, body,
+      id, email_id, body, email_type,
       created_at, updated_at
     )
     VALUES (
       (new_email_body->>'id')::UUID,
       (new_email_body->>'email_id')::UUID,
       new_email_body->>'body',
+      NULLIF(new_email_body->>'email_type', ''),
       epoch_to_timestamp((new_email_body->>'created_at')::BIGINT),
       epoch_to_timestamp((new_email_body->>'updated_at')::BIGINT)
     )
     ON CONFLICT (email_id) DO UPDATE SET
       body = EXCLUDED.body,
+      email_type = EXCLUDED.email_type,
       updated_at = EXCLUDED.updated_at
     WHERE EXISTS (
       SELECT 1 FROM emails e
@@ -507,6 +506,7 @@ BEGIN
   LOOP
     UPDATE email_body SET
       body = updated_email_body->>'body',
+      email_type = NULLIF(updated_email_body->>'email_type', ''),
       updated_at = epoch_to_timestamp((updated_email_body->>'updated_at')::BIGINT)
     WHERE email_id = (updated_email_body->>'email_id')::UUID
       AND EXISTS (

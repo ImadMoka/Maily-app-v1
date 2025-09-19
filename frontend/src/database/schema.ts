@@ -3,7 +3,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb'
 // 🏗️ DATABASE SCHEMA: Defines the structure of our SQLite database
 // This must match the structure of your remote PostgreSQL table
 export const schema = appSchema({
-  version: 9,  // Schema version - increment when making changes
+  version: 10,  // Schema version - increment when making changes
 
   tables: [
     tableSchema({
@@ -44,7 +44,6 @@ export const schema = appSchema({
         { name: 'account_id', type: 'string', isOptional: true }, // Added for IMAP sync
         { name: 'folder', type: 'string', isOptional: true },     // Track IMAP folder source
         { name: 'thread_id', type: 'string', isOptional: true },  // Reference to thread
-        { name: 'email_type', type: 'string', isOptional: true }, // Email classification (marketing, personal, etc.)
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
@@ -73,6 +72,7 @@ export const schema = appSchema({
       columns: [
         { name: 'email_id', type: 'string' },                    // Reference to email
         { name: 'body', type: 'string', isOptional: true },      // Unified body field (HTML or plain text)
+        { name: 'email_type', type: 'string', isOptional: true }, // Email classification (marketing, personal, etc.)
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
       ],
