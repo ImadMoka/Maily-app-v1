@@ -3,6 +3,7 @@ import type { Database } from '../../../../shared/types/database.types'
 import type { EmailMessage } from '../imap/imap.types'
 import type { SaveEmailsResult } from './emails.types'
 import { ThreadService } from '../threads/thread.service'
+import type { DetectionResult } from '../content/content-detector'
 
 // Database types from shared schema
 type EmailInsert = Database['public']['Tables']['emails']['Insert']
@@ -23,12 +24,13 @@ export class EmailDatabaseService {
   ): Promise<SaveEmailsResult> {
 
     if (emails.length === 0) {
-      return { success: true, saved: 0, skipped: 0, errors: [] }
+      return { success: true, saved: 0, skipped: 0, errors: [], savedEmails: [] }
     }
 
     let saved = 0
     let skipped = 0
     const errors: string[] = []
+    const savedEmails: any[] = []
 
     for (const email of emails) {
       try {
@@ -50,9 +52,11 @@ export class EmailDatabaseService {
         }
 
         // 3. Save email with thread_id
-        const { error } = await userClient
+        const { data, error } = await userClient
           .from('emails')
           .upsert(dbEmail, { onConflict: 'account_id,message_id' })
+          .select()
+          .single()
 
         if (error) {
           if (error.code === '23505' || error.message.includes('duplicate')) {
@@ -60,8 +64,13 @@ export class EmailDatabaseService {
           } else {
             errors.push(`${email.subject || 'Unknown'}: ${error.message}`)
           }
-        } else {
+        } else if (data) {
           saved++
+          savedEmails.push({
+            ...data,
+            uid: email.uid,
+            message_id: email.messageId || dbEmail.message_id
+          })
         }
 
       } catch (error) {
@@ -69,7 +78,7 @@ export class EmailDatabaseService {
       }
     }
 
-    return { success: errors.length === 0, saved, skipped, errors }
+    return { success: errors.length === 0, saved, skipped, errors, savedEmails }
   }
 
 
@@ -130,8 +139,47 @@ export class EmailDatabaseService {
   }
 
   private generateMessageId(email: EmailMessage): string {
-    return email.messageId && email.messageId.includes('@') ? email.messageId : 
+    return email.messageId && email.messageId.includes('@') ? email.messageId :
            `<${email.uid}.${email.date.getTime()}@maily-app.local>`
+  }
+
+  /**
+   * Save email bodies to the database with content type detection
+   * Stores both the body content and whether it's HTML or plain text
+   */
+  async saveEmailBodies(
+    userClient: SupabaseClient<Database>,
+    bodiesWithMetadata: Map<string, { content: string; metadata: DetectionResult }>
+  ): Promise<void> {
+    if (bodiesWithMetadata.size === 0) {
+      return
+    }
+
+    const records = Array.from(bodiesWithMetadata).map(([emailId, data]) => ({
+      email_id: emailId,
+      body: data.content,
+      email_type: data.metadata.isHtml ? 'html' : 'text'  // Store content type for frontend rendering
+    }))
+
+    // Log detection results for debugging
+    bodiesWithMetadata.forEach((data, emailId) => {
+      const { metadata } = data
+      console.log(
+        `📧 Email ${emailId}: ${metadata.isHtml ? 'HTML' : 'Plain'}, ` +
+        `${metadata.characterCount} chars, ` +
+        `images: ${metadata.hasImages}, links: ${metadata.hasLinks}`
+      )
+    })
+
+    // Batch upsert all email bodies
+    const { error } = await userClient
+      .from('email_body')
+      .upsert(records, { onConflict: 'email_id' })
+
+    if (error) {
+      console.error('❌ Error saving email bodies:', error)
+      throw error
+    }
   }
 
 }
