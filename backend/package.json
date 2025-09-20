@@ -6,8 +6,6 @@
     "start": "bun run src/index.ts",
     "test:auth": "bun run src/services/test/auth-flow.test.ts",
     "test:accounts": "bun run src/services/test/account-management.test.ts",
-    "test:queue": "bun run src/services/test/queue.test.ts",
-    "queue:status": "bun run src/services/test/queue-status.ts",
     "test": "bun run src/services/test/account-management.test.ts"
   },
   "devDependencies": {
@@ -18,7 +16,6 @@
     "dotenv": "^17.2.2",
     "mailparser": "^3.7.4",
     "node-imap": "^0.9.6",
-    "pg-boss": "^10.3.3",
     "zod": "^4.1.5"
   }
 }
