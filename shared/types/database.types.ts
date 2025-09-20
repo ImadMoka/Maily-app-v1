@@ -51,8 +51,6 @@ export type Database = {
           id: string
           is_read: boolean | null
           last_email_at: string | null
-          last_email_id: string | null
-          last_email_preview: string | null
           name: string
           updated_at: string | null
           user_id: string
@@ -63,8 +61,6 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           last_email_at?: string | null
-          last_email_id?: string | null
-          last_email_preview?: string | null
           name: string
           updated_at?: string | null
           user_id: string
@@ -75,21 +71,11 @@ export type Database = {
           id?: string
           is_read?: boolean | null
           last_email_at?: string | null
-          last_email_id?: string | null
-          last_email_preview?: string | null
           name?: string
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "contacts_last_email_id_fkey"
-            columns: ["last_email_id"]
-            isOneToOne: false
-            referencedRelation: "emails"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       email_accounts: {
         Row: {
@@ -201,7 +187,6 @@ export type Database = {
           cc_addresses: Json | null
           contact_id: string | null
           created_at: string | null
-          date_received: string | null
           date_sent: string
           folder: string | null
           from_address: string
@@ -210,14 +195,9 @@ export type Database = {
           has_attachments: boolean | null
           id: string
           imap_uid: number
-          is_deleted: boolean | null
           is_read: boolean | null
-          is_starred: boolean | null
           message_id: string
-          preview_text: string | null
-          size_bytes: number | null
           subject: string | null
-          sync_status: string | null
           thread_id: string | null
           to_addresses: Json | null
           updated_at: string | null
@@ -227,7 +207,6 @@ export type Database = {
           cc_addresses?: Json | null
           contact_id?: string | null
           created_at?: string | null
-          date_received?: string | null
           date_sent: string
           folder?: string | null
           from_address: string
@@ -236,14 +215,9 @@ export type Database = {
           has_attachments?: boolean | null
           id?: string
           imap_uid: number
-          is_deleted?: boolean | null
           is_read?: boolean | null
-          is_starred?: boolean | null
           message_id: string
-          preview_text?: string | null
-          size_bytes?: number | null
           subject?: string | null
-          sync_status?: string | null
           thread_id?: string | null
           to_addresses?: Json | null
           updated_at?: string | null
@@ -253,7 +227,6 @@ export type Database = {
           cc_addresses?: Json | null
           contact_id?: string | null
           created_at?: string | null
-          date_received?: string | null
           date_sent?: string
           folder?: string | null
           from_address?: string
@@ -262,14 +235,9 @@ export type Database = {
           has_attachments?: boolean | null
           id?: string
           imap_uid?: number
-          is_deleted?: boolean | null
           is_read?: boolean | null
-          is_starred?: boolean | null
           message_id?: string
-          preview_text?: string | null
-          size_bytes?: number | null
           subject?: string | null
-          sync_status?: string | null
           thread_id?: string | null
           to_addresses?: Json | null
           updated_at?: string | null
@@ -362,17 +330,6 @@ export type Database = {
       calculate_sync_progress: {
         Args: { emails_processed: number; total_emails_estimated: number }
         Returns: number
-      }
-      create_contact: {
-        Args: {
-          contact_created_at: string
-          contact_email: string
-          contact_id: string
-          contact_name: string
-          contact_updated_at: string
-          contact_user_id: string
-        }
-        Returns: undefined
       }
       epoch_to_timestamp: {
         Args: { epoch_ms: number }

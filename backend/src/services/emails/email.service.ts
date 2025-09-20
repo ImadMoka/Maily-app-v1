@@ -105,15 +105,9 @@ export class EmailDatabaseService {
       to_addresses: email.to ? email.to.map(addr => addr.address) : [],
       cc_addresses: email.cc ? email.cc.map(addr => addr.address) : [],
       date_sent: email.date.toISOString(),
-      date_received: new Date().toISOString(),
-      preview_text: email.bodyPreview || null,
-      size_bytes: email.size,
       has_attachments: email.hasAttachments,
       is_read: email.isRead || false,
-      is_starred: false,
-      is_deleted: false,
       folder: email.folder || null,  // Use actual folder from IMAP - no hardcoded defaults
-      sync_status: 'synced',
       contact_id: contactId
     }
   }

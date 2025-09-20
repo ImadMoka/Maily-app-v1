@@ -13,8 +13,6 @@ export class Contact extends Model {
   @field('email') email!: string        // Contact email - maps to 'email' column
   
   // 📧 EMAIL RELATIONSHIP FIELDS: Track latest email communication
-  @field('last_email_id') lastEmailId?: string        // UUID of most recent email
-  @field('last_email_preview') lastEmailPreview?: string  // Preview text from last email
   @date('last_email_at') lastEmailAt?: Date            // When last email was sent/received
   @field('is_read') isRead!: boolean                   // Whether contact has unread emails
   

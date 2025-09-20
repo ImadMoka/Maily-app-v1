@@ -65,8 +65,6 @@ export class ContactService {
         contactsMap.set(emailAddr, {
           email: emailAddr,
           name: addr.name?.trim().substring(0, 100) || '',
-          lastEmailId: savedEmailId || undefined,
-          lastEmailPreview: this.extractPreview(email.bodyPreview) || undefined,
           lastEmailAt: email.date.toISOString()
         })
       } else {
@@ -76,8 +74,6 @@ export class ContactService {
         
         if (email.date > existingDate) {
           // This email is more recent, update the relationship
-          existing.lastEmailId = savedEmailId || existing.lastEmailId
-          existing.lastEmailPreview = this.extractPreview(email.bodyPreview) || existing.lastEmailPreview
           existing.lastEmailAt = email.date.toISOString()
           
           // Update name if current contact doesn't have one and this one does
@@ -112,8 +108,6 @@ export class ContactService {
         user_id: userId,
         email: contact.email,
         name: contact.name,
-        last_email_id: contact.lastEmailId || null,
-        last_email_preview: contact.lastEmailPreview || null,
         last_email_at: contact.lastEmailAt || null,
         is_read: contact.isRead ?? true
       }))

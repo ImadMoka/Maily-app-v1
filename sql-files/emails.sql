@@ -200,3 +200,25 @@ ALTER TABLE emails ADD COLUMN email_type TEXT;
 -- ___UPDATES (2025-09-19 15:09:15)___
 -- Move email_type from emails table to email_body table
 ALTER TABLE emails DROP COLUMN IF EXISTS email_type;
+
+-- =================================================================
+-- UPDATES (2025-09-20 11:15:00)
+-- =================================================================
+-- Remove unused columns identified in DATABASE_OPTIMIZATION_REPORT.md
+
+-- Remove feature flags for unimplemented features
+ALTER TABLE emails
+DROP COLUMN IF EXISTS is_starred,      -- No starring feature in UI
+DROP COLUMN IF EXISTS is_deleted;      -- No soft delete workflow
+
+-- Remove unused metadata fields
+ALTER TABLE emails
+DROP COLUMN IF EXISTS preview_text,    -- Never displayed in UI
+DROP COLUMN IF EXISTS size_bytes;      -- Not shown to users
+
+-- Remove redundant fields
+ALTER TABLE emails
+DROP COLUMN IF EXISTS sync_status,     -- Set but never checked
+DROP COLUMN IF EXISTS date_received;   -- date_sent is sufficient
+
+
