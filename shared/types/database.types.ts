@@ -266,6 +266,62 @@ export type Database = {
           },
         ]
       }
+      sync_jobs: {
+        Row: {
+          account_id: string
+          attempts: number
+          checkpoint: Json
+          completed_at: string | null
+          created_at: string
+          error: string | null
+          id: string
+          payload: Json
+          scheduled_for: string
+          started_at: string | null
+          status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          attempts?: number
+          checkpoint?: Json
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          attempts?: number
+          checkpoint?: Json
+          completed_at?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_jobs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "email_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           contact_id: string

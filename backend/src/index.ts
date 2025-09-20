@@ -1,10 +1,51 @@
 import { AccountRoutes } from './api/routes/account.routes'
 import { ImapSyncRoutes } from './api/routes/imap-sync.routes'
 import { DebugRoutes } from './api/routes/debug.routes'
+import { QueueService, SyncJob } from './services/queue/queue.service'
 
 const accountRoutes = new AccountRoutes()
 const imapSyncRoutes = new ImapSyncRoutes()
 const debugRoutes = new DebugRoutes()
+
+// Initialize queue service if credentials are available
+const supabaseUrl = process.env.SUPABASE_URL
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (supabaseUrl && serviceKey) {
+  const queue = new QueueService(supabaseUrl, serviceKey)
+
+  // Define the sync processor
+  async function processSyncJob(job: SyncJob) {
+    console.log(`Processing ${job.type} for account ${job.account_id}`)
+
+    // TODO: Integrate your IMAP service here
+    // const account = await getEmailAccount(job.account_id)
+    // const imapService = new ImapService(account)
+    // await imapService.sync(job)
+
+    // For now, just simulate processing
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    console.log(`Completed ${job.type} for account ${job.account_id}`)
+  }
+
+  queue.start(processSyncJob)
+  console.log('✅ Queue service started (polls every 2 seconds)')
+
+  // Graceful shutdown handlers
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received, stopping queue...')
+    queue.stop()
+    process.exit(0)
+  })
+
+  process.on('SIGINT', () => {
+    console.log('SIGINT received, stopping queue...')
+    queue.stop()
+    process.exit(0)
+  })
+} else {
+  console.log('⚠️ Queue service disabled (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)')
+}
 
 Bun.serve({
   async fetch(req) {
