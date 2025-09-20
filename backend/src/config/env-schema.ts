@@ -17,6 +17,9 @@ export const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anonymous key is required'),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 
+  // Database configuration (for pg-boss queue)
+  DATABASE_URL: z.string().url('Valid PostgreSQL URL required').optional(),
+
   // Redis configuration
   REDIS_URL: z.string().url('Valid Redis URL required'),
 
