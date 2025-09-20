@@ -1,0 +1,546 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Linking } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { withObservables } from '@nozbe/watermelondb/react';
+import { Q } from '@nozbe/watermelondb';
+import { Email } from '../../database/models/Email';
+import { EmailBody } from '../../database/models/EmailBody';
+import { database } from '../../database';
+import { colors } from '../../constants';
+import { markEmailAsRead } from '../../services/EmailReadingService';
+
+interface EmailChatItemProps {
+  email: Email;
+}
+
+const EmailChatItem = withObservables(['email'], ({ email }) => ({
+  email: email.observe(),
+  emailBody: database.collections.get<EmailBody>('email_body')
+    .query(Q.where('email_id', email.id))
+    .observe(),
+}))(({ email, emailBody }: { email: Email; emailBody: EmailBody[] }) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const handleEmailTap = async () => {
+    if (!email.isRead) {
+      console.log('📧 Marking email as read:', email.subject);
+      await markEmailAsRead(email);
+    }
+  };
+
+  const handleOpenEmail = () => {
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+  };
+
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Simple direction detection - for now using a placeholder
+  // TODO: Get actual user account email dynamically
+  const getUserAccountEmail = () => {
+    // This should come from user settings/account data
+    return 'user@example.com'; // placeholder
+  };
+
+  const getEmailDirection = (email: Email): 'sent' | 'received' => {
+    const userEmail = getUserAccountEmail();
+    return email.fromAddress.toLowerCase() === userEmail.toLowerCase()
+      ? 'sent'
+      : 'received';
+  };
+
+  const direction = getEmailDirection(email);
+  const body = emailBody.length > 0 ? emailBody[0] : null;
+
+  // Prepare email content for WebView with 2024 best practices
+  const prepareEmailContent = (content: string) => {
+    // Clean the content first - remove common email template text and whitespace
+    let cleanedContent = content
+      // Remove "click here to view" type messages
+      .replace(/click here to view this .+?(?:web|browser|online)/gi, '')
+      .replace(/view (?:this|email) (?:in|on) (?:your )?(?:web )?browser/gi, '')
+      .replace(/if you (?:can't|cannot) see this .+?click here/gi, '')
+      .replace(/having trouble viewing this email\?/gi, '')
+      .replace(/view (?:this )?email (?:in|on) (?:your )?browser/gi, '')
+      .replace(/english version below/gi, '')
+      // Remove leading/trailing empty paragraphs and divs
+      .replace(/^(\s*<(?:p|div)[^>]*>\s*<\/(?:p|div)>\s*)+/gi, '')
+      .replace(/(\s*<(?:p|div)[^>]*>\s*<\/(?:p|div)>\s*)+$/gi, '')
+      // Remove empty tables at the beginning
+      .replace(/^(\s*<table[^>]*>\s*<\/table>\s*)+/gi, '')
+      // Remove multiple line breaks and spaces at start
+      .replace(/^(\s*<br[^>]*>\s*)+/gi, '')
+      .replace(/^(\s*&nbsp;\s*)+/gi, '')
+      // Remove leading whitespace
+      .replace(/^\s+/gm, '')
+      .trim();
+
+    const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-size: 16px;
+          line-height: 1.6;
+          color: #333;
+          padding: 16px;
+          background-color: #fff;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          margin-top: 0 !important;
+          padding-top: 16px !important;
+        }
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+          display: block;
+          margin: 10px 0;
+        }
+        table {
+          width: 100% !important;
+          border-collapse: collapse;
+        }
+        td, th {
+          padding: 8px;
+          text-align: left;
+        }
+        a {
+          color: #007AFF;
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        p {
+          margin: 10px 0;
+        }
+        h1, h2, h3, h4, h5, h6 {
+          margin: 15px 0 10px 0;
+          line-height: 1.3;
+        }
+        .container {
+          max-width: 100%;
+          overflow-x: auto;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        ${cleanedContent}
+      </div>
+    </body>
+    </html>`;
+
+    return emailHtml;
+  };
+
+
+  // Get preview text (better HTML stripping and cleaning)
+  const getPreviewText = (htmlContent: string) => {
+    // More aggressive cleaning for better preview
+    let cleanText = htmlContent
+      // Remove style tags and their content
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      // Remove script tags and their content
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      // Remove HTML comments
+      .replace(/<!--[\s\S]*?-->/gi, '')
+      // Remove "view online" messages FIRST (before HTML removal)
+      .replace(/click here to view this .+?(?:web|browser|online|mailing)/gi, '')
+      .replace(/view (?:this|email|mailing) (?:in|on) (?:your )?(?:web )?browser/gi, '')
+      .replace(/if you (?:can't|cannot) see this .+?click here/gi, '')
+      .replace(/having trouble viewing this email\?/gi, '')
+      .replace(/view (?:this )?(?:email|mailing) (?:in|on) (?:your )?browser/gi, '')
+      .replace(/\d{2}\.\d{2}\.\d{4} click here to view/gi, '') // Remove date + click here
+      .replace(/english version below/gi, '')
+      // Remove all HTML tags
+      .replace(/<[^>]*>/g, ' ')
+      // Remove HTML entities (more carefully)
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&uuml;/gi, 'ü')   // Handle German umlauts
+      .replace(/&auml;/gi, 'ä')
+      .replace(/&ouml;/gi, 'ö')
+      .replace(/&Uuml;/gi, 'Ü')
+      .replace(/&Auml;/gi, 'Ä')
+      .replace(/&Ouml;/gi, 'Ö')
+      .replace(/&szlig;/gi, 'ß')
+      .replace(/&#[0-9]+;/gi, ' ')
+      .replace(/&[a-zA-Z]+;/gi, ' ')
+      // Remove CSS properties that leaked through
+      .replace(/[a-zA-Z-]+\s*:\s*[^;]+;/g, ' ')
+      // Remove hex colors
+      .replace(/#[0-9A-Fa-f]{3,6}/g, ' ')
+      // Remove CSS selectors and rules
+      .replace(/\{[^}]*\}/g, ' ')
+      // Remove URLs
+      .replace(/https?:\/\/[^\s]+/gi, ' ')
+      // Remove email addresses from preview
+      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ')
+      // Remove dates at start of text
+      .replace(/^\s*\d{2}\.\d{2}\.\d{4}\s*/gi, '')
+      // Remove "click here" and similar phrases (more specific)
+      .replace(/\b(click here|read more|continue reading|view alert)\b/gi, '')
+      // Remove multiple spaces and newlines
+      .replace(/\s+/g, ' ')
+      // Be more careful with special characters - keep international letters
+      .replace(/[^\w\s.,!?()üäöÜÄÖß-]/g, ' ')
+      .trim();
+
+    // Clean up any remaining repetitive patterns
+    cleanText = cleanText
+      .replace(/(\w+)\s+\1(\s+\1)*/gi, '$1') // Remove repeated words
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // If still mostly junk, numbers, or very short, show generic message
+    if (cleanText.length < 15 || /^[\s\W\d]*$/.test(cleanText) || /^(\w+\s*){1,3}$/.test(cleanText)) {
+      return 'Email content available - tap to view';
+    }
+
+    return cleanText.length > 80 ? cleanText.substring(0, 80) + '...' : cleanText;
+  };
+
+
+  return (
+    <View style={[
+      styles.chatMessage,
+      direction === 'sent' ? styles.sentMessage : styles.receivedMessage
+    ]}>
+      <TouchableOpacity
+        style={[
+          styles.chatBubble,
+          direction === 'sent' ? styles.sentBubble : styles.receivedBubble
+        ]}
+        onPress={handleEmailTap}
+      >
+        {body?.body ? (
+          <View style={styles.emailPreviewContainer}>
+            {/* Blurred content window */}
+            <View style={[
+              styles.blurredWindow,
+              direction === 'sent' ? styles.sentBlurredWindow : styles.receivedBlurredWindow
+            ]}>
+              {/* Minimal button in center */}
+              <TouchableOpacity
+                style={[
+                  styles.minimalistButton,
+                  direction === 'sent' ? styles.sentMinimalistButton : styles.receivedMinimalistButton
+                ]}
+                onPress={handleOpenEmail}
+              >
+                <Text style={[
+                  styles.minimalistButtonText,
+                  direction === 'sent' ? styles.sentMinimalistButtonText : styles.receivedMinimalistButtonText
+                ]}>
+                  Open
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.emailPreviewContainer}>
+            <View style={[
+              styles.blurredWindow,
+              direction === 'sent' ? styles.sentBlurredWindow : styles.receivedBlurredWindow
+            ]}>
+              <Text style={[
+                styles.minimalistButtonText,
+                direction === 'sent' ? styles.sentMinimalistButtonText : styles.receivedMinimalistButtonText
+              ]}>
+                No content
+              </Text>
+            </View>
+          </View>
+        )}
+        <Text style={[
+          styles.messageTime,
+          direction === 'sent' ? styles.sentTime : styles.receivedTime
+        ]}>
+          {formatDateTime(email.dateSent)}
+        </Text>
+        {!email.isRead && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+
+      {/* Email Content Modal */}
+      {modalVisible && body?.body && (
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={handleCloseModal}
+          accessible={true}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Email Content</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={handleCloseModal}
+                >
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* WebView for Email Content */}
+              <WebView
+                source={{ html: prepareEmailContent(body.body) }}
+                originWhitelist={['*']}
+                startInLoadingState={true}
+                scalesPageToFit={false}
+                incognito={true}
+                style={styles.webview}
+                onLoadStart={() => setLoading(true)}
+                onLoadEnd={() => setLoading(false)}
+                renderLoading={() => (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading email...</Text>
+                  </View>
+                )}
+                onShouldStartLoadWithRequest={(event) => {
+                  // Open URLs in phone's default browser
+                  if (event.url && event.url !== 'about:blank' && !event.url.startsWith('data:')) {
+                    console.log('Opening URL in browser:', event.url);
+                    Linking.openURL(event.url).catch(err => {
+                      console.error('Failed to open URL:', err);
+                    });
+                    return false; // Prevent navigation in WebView
+                  }
+                  return true; // Allow initial email content load
+                }}
+                showsVerticalScrollIndicator={true}
+                showsHorizontalScrollIndicator={false}
+                bounces={true}
+                scrollEnabled={true}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
+    </View>
+  );
+});
+
+const styles = StyleSheet.create({
+  chatMessage: {
+    marginVertical: 4,
+    marginHorizontal: 16,
+  },
+
+  // Direction-based message alignment
+  sentMessage: {
+    alignItems: 'flex-end', // Right align for sent messages
+  },
+  receivedMessage: {
+    alignItems: 'flex-start', // Left align for received messages
+  },
+
+  // Base bubble styles - larger for photo-like previews
+  chatBubble: {
+    borderRadius: 18,
+    padding: 12,
+    maxWidth: '90%',
+    minWidth: 250,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+
+  // Sent bubble (blue, right side)
+  sentBubble: {
+    backgroundColor: '#007AFF', // iOS blue
+    borderBottomRightRadius: 6, // Pointed tail on bottom right
+  },
+
+  // Received bubble (gray, left side)
+  receivedBubble: {
+    backgroundColor: '#F0F0F0', // Slightly darker gray
+    borderBottomLeftRadius: 6, // Pointed tail on bottom left
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+
+  // Text styles
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  sentText: {
+    color: colors.white, // White text on blue background
+  },
+  receivedText: {
+    color: '#333333', // Darker text for better readability
+  },
+
+  // Time styles
+  messageTime: {
+    fontSize: 11,
+    opacity: 0.8,
+    marginTop: 4,
+    textAlign: 'right',
+  },
+  sentTime: {
+    color: 'rgba(255, 255, 255, 0.8)', // Semi-transparent white
+  },
+  receivedTime: {
+    color: '#666666', // Medium gray
+  },
+
+  unreadDot: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF3B30', // iOS red
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  // Minimalistic email preview styles
+  emailPreviewContainer: {
+    flex: 1,
+  },
+
+  // Blurred window in the middle - WhatsApp photo size
+  blurredWindow: {
+    height: 200,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  sentBlurredWindow: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  receivedBlurredWindow: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+
+  // Minimalist button in center
+  minimalistButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sentMinimalistButton: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+  },
+  receivedMinimalistButton: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+  },
+
+  // Minimalist button text
+  minimalistButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  sentMinimalistButtonText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  receivedMinimalistButtonText: {
+    color: 'rgba(0, 0, 0, 0.7)',
+  },
+
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    margin: 20,
+    flex: 1,
+    maxHeight: '90%',
+    width: '90%',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.secondary,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.secondary,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+  webview: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: colors.primary,
+    opacity: 0.7,
+  },
+});
+
+export default EmailChatItem;
