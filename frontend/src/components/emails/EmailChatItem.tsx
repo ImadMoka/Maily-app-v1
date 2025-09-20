@@ -77,8 +77,8 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
   const direction = getEmailDirection(email);
   const body = emailBody.length > 0 ? emailBody[0] : null;
 
-  // Function that prepares HTML email content for WebView display by cleaning unwanted template text and wrapping in mobile-optimized HTML structure
-  const prepareEmailContent = (content: string) => {
+  // Function that prepares HTML email content for WebView display by cleaning unwanted template text and wrapping in mobile-optimized HTML structure with optional preview scaling
+  const prepareEmailContent = (content: string, isPreview: boolean = false) => {
     // Clean the content first - remove common email template text and whitespace
     let cleanedContent = content
       // Remove "click here to view" type messages
@@ -104,7 +104,7 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
     <!DOCTYPE html>
     <html>
     <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+      <meta name="viewport" content="width=device-width, initial-scale=${isPreview ? '0.25' : '1'}, maximum-scale=${isPreview ? '0.25' : '1'}, user-scalable=no">
       <style>
         * {
           margin: 0;
@@ -180,27 +180,30 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
       >
         {body?.body ? (
           <View style={styles.emailPreviewContainer}>
-            {/* Blurred content window */}
-            <View style={[
-              styles.blurredWindow,
-              direction === 'sent' ? styles.sentBlurredWindow : styles.receivedBlurredWindow
-            ]}>
-              {/* Minimal button in center */}
-              <TouchableOpacity
-                style={[
-                  styles.minimalistButton,
-                  direction === 'sent' ? styles.sentMinimalistButton : styles.receivedMinimalistButton
-                ]}
-                onPress={handleOpenEmail}
-              >
-                <Text style={[
-                  styles.minimalistButtonText,
-                  direction === 'sent' ? styles.sentMinimalistButtonText : styles.receivedMinimalistButtonText
-                ]}>
-                  Open
-                </Text>
-              </TouchableOpacity>
-            </View>
+            {/* Email preview window with scaled WebView */}
+            <TouchableOpacity
+              style={[
+                styles.previewContainer,
+                direction === 'sent' ? styles.sentPreviewContainer : styles.receivedPreviewContainer
+              ]}
+              onPress={handleOpenEmail}
+              activeOpacity={0.8}
+            >
+              <WebView
+                source={{ html: prepareEmailContent(body.body, true) }}
+                style={styles.previewWebView}
+                scrollEnabled={false}
+                javaScriptEnabled={false}
+                pointerEvents="none"
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+              />
+              {/* Subtle overlay to indicate clickable */}
+              <View style={[
+                styles.previewOverlay,
+                direction === 'sent' ? styles.sentPreviewOverlay : styles.receivedPreviewOverlay
+              ]} />
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.emailPreviewContainer}>
@@ -396,6 +399,52 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+
+  // Preview container that replaces the blurred window and makes the entire preview area clickable
+  previewContainer: {
+    height: 200,
+    borderRadius: 16,
+    marginVertical: 8,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  sentPreviewContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  receivedPreviewContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+  },
+
+  // WebView that displays the scaled email preview at 25% size
+  previewWebView: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+
+  // Subtle overlay that indicates the preview is clickable without obscuring content
+  previewOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 16,
+    pointerEvents: 'none',
+  },
+  sentPreviewOverlay: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  receivedPreviewOverlay: {
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
   },
 
   // Minimalist button in center
