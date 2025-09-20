@@ -1,27 +1,38 @@
+// React and React Native imports for component functionality, UI elements, modal, and linking
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, ActivityIndicator, Linking } from 'react-native';
 import { WebView } from 'react-native-webview';
+
+// WatermelonDB imports for reactive database observables and queries
 import { withObservables } from '@nozbe/watermelondb/react';
 import { Q } from '@nozbe/watermelondb';
+
+// Database models for Email and EmailBody entities
 import { Email } from '../../database/models/Email';
 import { EmailBody } from '../../database/models/EmailBody';
 import { database } from '../../database';
+
+// App constants for colors and email reading service
 import { colors } from '../../constants';
 import { markEmailAsRead } from '../../services/EmailReadingService';
 
+// TypeScript interface defining props for EmailChatItem component expecting an Email object
 interface EmailChatItemProps {
   email: Email;
 }
 
+// Higher-order component that wraps EmailChatItem with reactive database observables for email and emailBody changes
 const EmailChatItem = withObservables(['email'], ({ email }) => ({
   email: email.observe(),
   emailBody: database.collections.get<EmailBody>('email_body')
     .query(Q.where('email_id', email.id))
     .observe(),
 }))(({ email, emailBody }: { email: Email; emailBody: EmailBody[] }) => {
+  // State management for modal visibility and WebView loading status
   const [modalVisible, setModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Function that marks email as read when tapped if it hasn't been read yet
   const handleEmailTap = async () => {
     if (!email.isRead) {
       console.log('📧 Marking email as read:', email.subject);
@@ -29,14 +40,17 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
     }
   };
 
+  // Function that opens the email content modal by setting modalVisible to true
   const handleOpenEmail = () => {
     setModalVisible(true);
   };
 
+  // Function that closes the email content modal by setting modalVisible to false
   const handleCloseModal = () => {
     setModalVisible(false);
   };
 
+  // Function that formats a Date object into a short readable format like "Sep 18, 10:06 AM"
   const formatDateTime = (date: Date) => {
     return date.toLocaleString([], {
       month: 'short',
@@ -46,13 +60,12 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
     });
   };
 
-  // Simple direction detection - for now using a placeholder
-  // TODO: Get actual user account email dynamically
+  // Function that returns the current user's email address - currently hardcoded placeholder that should be replaced with dynamic user data
   const getUserAccountEmail = () => {
-    // This should come from user settings/account data
     return 'user@example.com'; // placeholder
   };
 
+  // Function that determines if an email was sent or received by comparing fromAddress with user's email address
   const getEmailDirection = (email: Email): 'sent' | 'received' => {
     const userEmail = getUserAccountEmail();
     return email.fromAddress.toLowerCase() === userEmail.toLowerCase()
@@ -60,10 +73,11 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
       : 'received';
   };
 
+  // Calculate email direction and extract the first email body if available
   const direction = getEmailDirection(email);
   const body = emailBody.length > 0 ? emailBody[0] : null;
 
-  // Prepare email content for WebView with 2024 best practices
+  // Function that prepares HTML email content for WebView display by cleaning unwanted template text and wrapping in mobile-optimized HTML structure
   const prepareEmailContent = (content: string) => {
     // Clean the content first - remove common email template text and whitespace
     let cleanedContent = content
@@ -151,77 +165,7 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
     return emailHtml;
   };
 
-
-  // Get preview text (better HTML stripping and cleaning)
-  const getPreviewText = (htmlContent: string) => {
-    // More aggressive cleaning for better preview
-    let cleanText = htmlContent
-      // Remove style tags and their content
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      // Remove script tags and their content
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      // Remove HTML comments
-      .replace(/<!--[\s\S]*?-->/gi, '')
-      // Remove "view online" messages FIRST (before HTML removal)
-      .replace(/click here to view this .+?(?:web|browser|online|mailing)/gi, '')
-      .replace(/view (?:this|email|mailing) (?:in|on) (?:your )?(?:web )?browser/gi, '')
-      .replace(/if you (?:can't|cannot) see this .+?click here/gi, '')
-      .replace(/having trouble viewing this email\?/gi, '')
-      .replace(/view (?:this )?(?:email|mailing) (?:in|on) (?:your )?browser/gi, '')
-      .replace(/\d{2}\.\d{2}\.\d{4} click here to view/gi, '') // Remove date + click here
-      .replace(/english version below/gi, '')
-      // Remove all HTML tags
-      .replace(/<[^>]*>/g, ' ')
-      // Remove HTML entities (more carefully)
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&quot;/gi, '"')
-      .replace(/&uuml;/gi, 'ü')   // Handle German umlauts
-      .replace(/&auml;/gi, 'ä')
-      .replace(/&ouml;/gi, 'ö')
-      .replace(/&Uuml;/gi, 'Ü')
-      .replace(/&Auml;/gi, 'Ä')
-      .replace(/&Ouml;/gi, 'Ö')
-      .replace(/&szlig;/gi, 'ß')
-      .replace(/&#[0-9]+;/gi, ' ')
-      .replace(/&[a-zA-Z]+;/gi, ' ')
-      // Remove CSS properties that leaked through
-      .replace(/[a-zA-Z-]+\s*:\s*[^;]+;/g, ' ')
-      // Remove hex colors
-      .replace(/#[0-9A-Fa-f]{3,6}/g, ' ')
-      // Remove CSS selectors and rules
-      .replace(/\{[^}]*\}/g, ' ')
-      // Remove URLs
-      .replace(/https?:\/\/[^\s]+/gi, ' ')
-      // Remove email addresses from preview
-      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ')
-      // Remove dates at start of text
-      .replace(/^\s*\d{2}\.\d{2}\.\d{4}\s*/gi, '')
-      // Remove "click here" and similar phrases (more specific)
-      .replace(/\b(click here|read more|continue reading|view alert)\b/gi, '')
-      // Remove multiple spaces and newlines
-      .replace(/\s+/g, ' ')
-      // Be more careful with special characters - keep international letters
-      .replace(/[^\w\s.,!?()üäöÜÄÖß-]/g, ' ')
-      .trim();
-
-    // Clean up any remaining repetitive patterns
-    cleanText = cleanText
-      .replace(/(\w+)\s+\1(\s+\1)*/gi, '$1') // Remove repeated words
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // If still mostly junk, numbers, or very short, show generic message
-    if (cleanText.length < 15 || /^[\s\W\d]*$/.test(cleanText) || /^(\w+\s*){1,3}$/.test(cleanText)) {
-      return 'Email content available - tap to view';
-    }
-
-    return cleanText.length > 80 ? cleanText.substring(0, 80) + '...' : cleanText;
-  };
-
-
+  // Main component JSX return that renders email chat bubble with blurred preview window and modal for full email content
   return (
     <View style={[
       styles.chatMessage,
@@ -344,6 +288,7 @@ const EmailChatItem = withObservables(['email'], ({ email }) => ({
   );
 });
 
+// StyleSheet object containing all styling definitions for chat messages, buttons, modal, and WebView elements with direction-based variations for sent/received messages
 const styles = StyleSheet.create({
   chatMessage: {
     marginVertical: 4,
@@ -543,4 +488,5 @@ const styles = StyleSheet.create({
   },
 });
 
+// Export the EmailChatItem component as default export for use in other parts of the application
 export default EmailChatItem;
