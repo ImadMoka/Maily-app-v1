@@ -498,3 +498,13 @@ CREATE INDEX idx_contacts_sync_pull ON contacts(user_id, updated_at, created_at)
 -- Batch operation index for push operations
 -- Optimizes bulk updates and deletes during sync
 CREATE INDEX idx_contacts_sync_push ON contacts(id, user_id);
+
+-- =================================================================
+-- UPDATES (2025-09-20 11:15:00)
+-- =================================================================
+-- Remove unused denormalized fields that were never displayed in UI
+
+-- Drop unused columns from contacts table
+ALTER TABLE contacts
+DROP COLUMN IF EXISTS last_email_preview,
+DROP COLUMN IF EXISTS last_email_id;

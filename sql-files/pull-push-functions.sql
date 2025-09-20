@@ -33,8 +33,6 @@ BEGIN
               'user_id', user_id,
               'name', name,
               'email', email,
-              'last_email_id', last_email_id,
-              'last_email_preview', last_email_preview,
               'last_email_at', timestamp_to_epoch(last_email_at),
               'is_read', is_read,
               'created_at', timestamp_to_epoch(created_at),
@@ -55,8 +53,6 @@ BEGIN
               'user_id', user_id,
               'name', name,
               'email', email,
-              'last_email_id', last_email_id,
-              'last_email_preview', last_email_preview,
               'last_email_at', timestamp_to_epoch(last_email_at),
               'is_read', is_read,
               'created_at', timestamp_to_epoch(created_at),
@@ -268,18 +264,26 @@ BEGIN
     SELECT jsonb_array_elements(changes->'contacts'->'created')
   LOOP
     IF (new_contact->>'user_id')::UUID = requesting_user_id THEN
-      PERFORM create_contact(
+      -- Direct INSERT with UPSERT pattern (no more create_contact function)
+      INSERT INTO contacts (
+        id, user_id, name, email, last_email_at, is_read, created_at, updated_at
+      )
+      VALUES (
         (new_contact->>'id')::UUID,
         requesting_user_id,
         new_contact->>'name',
         new_contact->>'email',
-        (new_contact->>'last_email_id')::UUID,
-        new_contact->>'last_email_preview',
         epoch_to_timestamp((new_contact->>'last_email_at')::BIGINT),
         (new_contact->>'is_read')::BOOLEAN,
         epoch_to_timestamp((new_contact->>'created_at')::BIGINT),
         epoch_to_timestamp((new_contact->>'updated_at')::BIGINT)
-      );
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        email = EXCLUDED.email,
+        last_email_at = EXCLUDED.last_email_at,
+        is_read = EXCLUDED.is_read,
+        updated_at = EXCLUDED.updated_at;
     END IF;
   END LOOP;
 
@@ -290,8 +294,6 @@ BEGIN
     UPDATE contacts SET
       name = updated_contact->>'name',
       email = updated_contact->>'email',
-      last_email_id = (updated_contact->>'last_email_id')::UUID,
-      last_email_preview = updated_contact->>'last_email_preview',
       last_email_at = epoch_to_timestamp((updated_contact->>'last_email_at')::BIGINT),
       is_read = (updated_contact->>'is_read')::BOOLEAN,
       updated_at = epoch_to_timestamp((updated_contact->>'updated_at')::BIGINT)

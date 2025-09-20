@@ -7,8 +7,6 @@ export interface ContactProcessingResult {
 export interface ProcessedContact {
   email: string
   name: string
-  lastEmailId?: string
-  lastEmailPreview?: string
   lastEmailAt?: string
   isRead?: boolean
 }
@@ -16,7 +14,5 @@ export interface ProcessedContact {
 export interface ContactWithEmailData {
   email: string
   name: string
-  lastEmailId: string | null
-  lastEmailPreview: string | null
   lastEmailAt: string | null
 }
