@@ -109,3 +109,4 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+- After your implementation ask me for test and feedback instead of creating testscripts.
